@@ -93,3 +93,92 @@ export async function pixelAt(page: import('@playwright/test').Page, x: number, 
     return Array.from(ctx.getImageData(Math.round(px * 1024), Math.round(py * 1024), 1, 1).data);
   }, [x, y]);
 }
+
+/**
+ * Colours the open drawing like the reference ray (dark green body, yellow stripes) by driving the
+ * Drawing API directly – much faster than touch events, which matters with software GL.
+ */
+export async function paintStripes(page: import('@playwright/test').Page): Promise<void> {
+  await page.evaluate(() => {
+    type D = { tool: string; color: string; brush: number; pointerDown(x: number, y: number): void; pointerMove(x: number, y: number): void; pointerUp(): void };
+    const d = (window as unknown as { app: { panel: { currentDrawing: D } } }).app.panel.currentDrawing;
+    d.tool = 'bucket';
+    d.color = '#1f8f4a';
+    d.pointerDown(512, 460);
+    d.pointerUp();
+    d.tool = 'crayon';
+    d.brush = 2;
+    d.color = '#f9d21e';
+    for (const x of [0.22, 0.34, 0.5, 0.66, 0.78]) {
+      d.pointerDown(x * 1024, 0.1 * 1024);
+      for (let i = 1; i <= 30; i++) d.pointerMove(x * 1024, (0.1 + (0.72 * i) / 30) * 1024);
+      d.pointerUp();
+    }
+    d.brush = 1;
+    d.color = '#e8332a';
+    d.pointerDown(0.4 * 1024, 0.3 * 1024);
+    for (let i = 1; i <= 12; i++) d.pointerMove((0.4 + 0.2 * (i / 12)) * 1024, (0.3 + 0.03 * Math.sin(i)) * 1024);
+    d.pointerUp();
+  });
+}
+
+type W = {
+  aquarium: {
+    camera: { position: { constructor: new () => Vec; }; updateMatrixWorld(): void };
+    viewport: { width: number; height: number };
+    advance(s: number): void;
+    renderOnce(): void;
+    creatures: { creatures: Array<{ group: { matrixWorld: unknown; updateMatrixWorld(f: boolean): void; position: Vec }; mesh: { geometry: Geo }; mode: string; swimmer: { pos: number[] } | null }> };
+  };
+  app: { lastRelease: { creature: W['aquarium']['creatures']['creatures'][number] } | null };
+};
+type Vec = { set(x: number, y: number, z: number): Vec; applyMatrix4(m: unknown): Vec; project(c: unknown): Vec; x: number; y: number; z: number };
+type Geo = { getAttribute(n: string): { count: number; getX(i: number): number; getY(i: number): number; getZ(i: number): number } };
+
+/** Largest distance (CSS px) between where the creature's outline vertices are on screen and where the drawing's outline was. */
+export async function registrationError(page: import('@playwright/test').Page, rect: { x: number; y: number; width: number; height: number }): Promise<{ maxPx: number; rimVertices: number }> {
+  return page.evaluate((r) => {
+    const w = window as unknown as W;
+    const a = w.aquarium;
+    const c = (w.app.lastRelease as NonNullable<W['app']['lastRelease']>).creature;
+    c.group.updateMatrixWorld(true);
+    a.camera.updateMatrixWorld();
+    const geo = c.mesh.geometry;
+    const pos = geo.getAttribute('position');
+    const uv = geo.getAttribute('uv');
+    const V = new (a.camera.position.constructor as new () => Vec)();
+    let maxPx = 0;
+    let rim = 0;
+    for (let i = 0; i < pos.count; i++) {
+      if (Math.abs(pos.getY(i)) > 1e-6) continue; // outline vertices lie in the template plane
+      rim++;
+      V.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(c.group.matrixWorld).project(a.camera);
+      const sx = (V.x * 0.5 + 0.5) * a.viewport.width;
+      const sy = (-V.y * 0.5 + 0.5) * a.viewport.height;
+      const ex = r.x + uv.getX(i) * r.width;
+      const ey = r.y + (1 - uv.getY(i)) * r.height;
+      maxPx = Math.max(maxPx, Math.hypot(sx - ex, sy - ey));
+    }
+    return { maxPx, rimVertices: rim };
+  }, rect);
+}
+
+export async function screenBox(page: import('@playwright/test').Page): Promise<{ left: number; right: number; top: number; bottom: number }> {
+  return page.evaluate(() => {
+    const w = window as unknown as W;
+    const a = w.aquarium;
+    const c = (w.app.lastRelease as NonNullable<W['app']['lastRelease']>).creature;
+    c.group.updateMatrixWorld(true);
+    a.camera.updateMatrixWorld();
+    const pos = c.mesh.geometry.getAttribute('position');
+    const V = new (a.camera.position.constructor as new () => Vec)();
+    let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
+    for (let i = 0; i < pos.count; i++) {
+      V.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(c.group.matrixWorld).project(a.camera);
+      const sx = (V.x * 0.5 + 0.5) * a.viewport.width;
+      const sy = (-V.y * 0.5 + 0.5) * a.viewport.height;
+      left = Math.min(left, sx); right = Math.max(right, sx); top = Math.min(top, sy); bottom = Math.max(bottom, sy);
+    }
+    return { left, right, top, bottom };
+  });
+}

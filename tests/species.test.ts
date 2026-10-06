@@ -21,6 +21,22 @@ describe('ray template', () => {
     expect(b.maxX - b.minX).toBeGreaterThan(0.85);
   });
 
+  it('has the reference proportions: disc about 1.8× as wide as long, tail nearly as long as the body', () => {
+    const body = polygonBounds(t.parts[0].outline);
+    const tail = polygonBounds(t.parts[1].outline);
+    expect((body.maxX - body.minX) / (body.maxY - body.minY)).toBeGreaterThan(1.6);
+    expect((body.maxX - body.minX) / (body.maxY - body.minY)).toBeLessThan(2.1);
+    expect((tail.maxY - tail.minY) / (body.maxY - body.minY)).toBeGreaterThan(0.7);
+  });
+
+  it('keeps the eyes inside the body, near the nose', () => {
+    const body = polygonBounds(t.parts[0].outline);
+    for (const e of t.eyes) {
+      expect(e.y).toBeGreaterThan(body.minY);
+      expect(e.y).toBeLessThan(body.minY + 0.15);
+    }
+  });
+
   it('is left-right symmetric', () => {
     const b = t.parts[0].outline;
     const bb = polygonBounds(b);

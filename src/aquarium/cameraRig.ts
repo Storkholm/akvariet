@@ -19,3 +19,9 @@ export function fitCamera(aspect: number): CameraFit {
   const distance = visibleWidth / 2 / (Math.tan((fov * Math.PI) / 360) * aspect);
   return { fov, distance, height: lerp(3.8, 3.2, portrait), lookY: lerp(3.3, 1.9, portrait) };
 }
+
+/** Half width of the area creatures swim in: the visible width at mid-depth, so they stay on screen. */
+export function swimHalfWidth(aspect: number, fit: CameraFit): number {
+  const visible = Math.tan((fit.fov * Math.PI) / 360) * aspect * (fit.distance + 3) * 0.85;
+  return Math.min(12.5, Math.max(5, visible));
+}

@@ -18,9 +18,9 @@ const near = (a: number[], b: number[], tol = 12) => a.every((v, i) => Math.abs(
 test('fortryd: at least 20 steps, back to the blank template', async ({ browser }) => {
   const { ctx, page, cdp, at, radio, button } = await setup(browser);
   await radio('Rød');
-  // 24 small marks spread over the body.
+  // 24 small marks spread over the body (all inside the outline).
   const spots: Array<[number, number]> = [];
-  for (let i = 0; i < 24; i++) spots.push([0.3 + (i % 6) * 0.08, 0.28 + Math.floor(i / 6) * 0.07]);
+  for (let i = 0; i < 24; i++) spots.push([0.34 + (i % 6) * 0.06, 0.22 + Math.floor(i / 6) * 0.035]);
   for (const [x, y] of spots) await touchDrag(cdp, line(at(x, y), at(x + 0.02, y), 3));
   expect(near(await pixelAt(page, spots[0][0] + 0.01, spots[0][1]), [232, 51, 42, 255], 60)).toBe(true);
   await expect(button('Fortryd')).toBeEnabled();
@@ -73,10 +73,10 @@ test('only one finger draws; a second finger is ignored', async ({ browser }) =>
   const { ctx, page, cdp, at, radio } = await setup(browser);
   await radio('Lilla');
   await radio('Tyk');
-  // Finger 1 draws a line along y=0.3; finger 2 rests at (0.7, 0.45) on the body.
-  await touchDrag(cdp, line(at(0.3, 0.3), at(0.45, 0.3), 10), at(0.7, 0.45));
+  // Finger 1 draws a line along y=0.3; finger 2 rests at (0.65, 0.3) on the same wing.
+  await touchDrag(cdp, line(at(0.3, 0.3), at(0.45, 0.3), 10), at(0.65, 0.3));
   expect(near(await pixelAt(page, 0.38, 0.3), [138, 69, 198, 255], 70)).toBe(true);
-  expect(near(await pixelAt(page, 0.7, 0.45), BASE, 2)).toBe(true);
+  expect(near(await pixelAt(page, 0.65, 0.3), BASE, 2)).toBe(true);
   await ctx.close();
 });
 
@@ -124,6 +124,8 @@ test('slip løs hands the drawing on and returns to the picker', async ({ browse
   await radio('Rød');
   await touchDrag(cdp, line(at(0.4, 0.3), at(0.6, 0.3), 6));
   await page.getByRole('button', { name: 'Slip løs' }).click();
+  // M3: the picker returns once the creature has swum off (transition clock, advanced by hand here).
+  await page.evaluate(() => (window as unknown as { aquarium: { advance(s: number): void } }).aquarium.advance(2.5));
   await expect(page.getByRole('button', { name: 'Rokke' })).toBeVisible();
   const info = await page.evaluate(async () => {
     const r = (window as unknown as { app: { lastRelease: { species: string; drawing: { toBlob(n: number): Promise<Blob> } } | null } }).app.lastRelease;

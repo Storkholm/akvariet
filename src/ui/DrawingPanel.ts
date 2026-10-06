@@ -135,14 +135,21 @@ export class DrawingPanel {
     this.setTool('crayon');
     this.selectCrayon(0, false);
     this.setBrush(1);
+    this.element.classList.remove('releasing');
     this.element.hidden = false;
     // Next frame so the CSS transition from the hidden state runs.
     requestAnimationFrame(() => this.element.classList.add('open'));
     this.layout();
   }
 
+  /** "Slip løs" started: tray and buttons slide away, the drawing fades out (the 3D body is already underneath). */
+  beginRelease(): void {
+    this.activePointer = null;
+    this.element.classList.add('releasing');
+  }
+
   close(): void {
-    this.element.classList.remove('open');
+    this.element.classList.remove('open', 'releasing');
     this.element.hidden = true;
     this.drawing?.canvas.remove();
     this.drawing = null;

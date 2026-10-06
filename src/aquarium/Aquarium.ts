@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { clampPixelRatio } from '../util/render';
-import { fitCamera } from './cameraRig';
+import { CreatureManager } from '../creature/CreatureManager';
+import { fitCamera, swimHalfWidth } from './cameraRig';
 import { LightRays, Particles } from './effects';
 import { FishSchool, SCHOOLS } from './fishSchool';
 import { timeUniform } from './materials';
@@ -43,6 +44,7 @@ export class Aquarium {
   private readonly rays = new LightRays();
   private readonly particles = new Particles();
   private readonly schools: FishSchool[] = SCHOOLS.map((s) => new FishSchool(s));
+  readonly creatures: CreatureManager;
 
   constructor(private readonly host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -57,8 +59,10 @@ export class Aquarium {
     sun.position.set(-6, 14, 8);
     this.scene.add(sun);
 
+    this.creatures = new CreatureManager(this.scene, this.camera, this.renderer.capabilities.getMaxAnisotropy());
     const reef = buildReef();
     this.scene.add(reef.sand, reef.group, this.rays.group, this.particles.group);
+    this.creatures.warmUp(this.renderer);
     for (const s of this.schools) this.scene.add(s.mesh);
 
     this.resize();
@@ -74,6 +78,9 @@ export class Aquarium {
     this.camera.aspect = w / h;
     this.camera.fov = fit.fov;
     this.camera.updateProjectionMatrix();
+    const half = swimHalfWidth(w / h, fit);
+    this.creatures.bounds.min[0] = -half;
+    this.creatures.bounds.max[0] = half;
     this.camDistance = fit.distance;
     this.camHeight = fit.height;
     this.lookY = fit.lookY;
@@ -108,10 +115,25 @@ export class Aquarium {
     });
   }
 
+  /** Test hook: simulate `seconds` in fixed steps and render the result once (works while paused). */
+  advance(seconds: number, step = 1 / 30): void {
+    for (let t = 0; t < seconds - 1e-9; t += step) this.update(Math.min(step, seconds - t));
+    this.renderOnce();
+  }
+
+  renderOnce(): void {
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  get viewport(): { width: number; height: number } {
+    return { width: this.host.clientWidth, height: this.host.clientHeight };
+  }
+
   update(dt: number): void {
     this.elapsed += dt;
     timeUniform.value = this.elapsed;
     for (const s of this.schools) s.update(dt);
+    this.creatures.update(dt);
     this.rays.update(this.elapsed);
     this.particles.update(dt, this.elapsed);
     this.placeCamera();
