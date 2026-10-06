@@ -22,6 +22,8 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Bug** | `Belly` | Kroppens underside: tegningen i en lysere, blegere udgave – aldrig tegnet direkte. |
 | **Akvariet** | `Aquarium` | 3D-scenen med bund, koraller, lys, baggrundsliv og alle dyrene. Kører altid. |
 | **Baggrundsliv** | `AmbientLife` | Simple fiskestimer og bevægelige planter der ikke er tegnet af barnet og ikke gemmes. |
+| **Rev** | `Reef` | Akvariets faste pynt på bunden: koraller, planter, sten og sand. Bygges i kode (seedet), ikke tegnet af barnet. |
+| **Fiskestime** | `FishSchool` | Én flok af baggrundslivet (boids) der tegnes med instancing. Akvariet har flere stimer med hver sin fiskeart. |
 | **Glædeshop** | `react()` | Det et dyr gør, når man trykker på det i akvariet: lille hop eller salto + bobler + lyd. |
 | **Afsked** | `farewell()` | Når akvariet er fuldt og et nyt dyr kommer ind, svømmer det ældste dyr ud af billedet og slettes. |
 | **Voksentilstand** | `AdultMode` | Skjult tilstand (hold låse-ikonet nede i 3 sek.), hvor man kan slette enkelte dyr. |

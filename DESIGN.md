@@ -134,3 +134,10 @@ Fælles akvarie på tværs af enheder · flere end to arter · fodring · kamera
 
 - Præcis kunstnerisk stil for akvariet (tegnet/blød vs. mere realistisk som forbilledet) – afgøres efter M1 ud fra skærmbilleder.
 - Skal dyr kunne få et navn? (Kræver tekst – ikke i v1.)
+
+### Valg truffet under bygningen (skal bekræftes)
+
+- **M1 – akvariets stil:** vi gik med *blød, let lavpoly-tegnet* stil (Lambert-lys, glatte farver, vertex-farver) frem for realistisk. Forbilledets reb har langt mere detaljerede koraller; vores er enklere former (grenkoraller, kupler, bordkoraller, anemoner, græs) i mættede farver. Kan hæves senere uden at ændre resten, fordi hele revet er samlet i `src/aquarium/reef.ts`.
+- **M1 – ydeevne er kun målt i software-GL:** revet er ca. 250.000 trekanter og 17–19 draw calls. Det burde være fint på en iPad, men kan ikke bekræftes uden en rigtig enhed (M6). Skal revet lettes, er det grenkoralerne (`maxDepth` i `addBranching`) der koster mest.
+- **M1 – stående format:** i stående bruges bredere synsvinkel og kun ca. 10 enheder af revet i bredden, så højre og venstre rev ses delvist. Der er stadig noget bar sand nederst; justeres i `cameraRig.ts`, når tegnefladens layout er kendt.
+- **M1 – tågefarve = baggrundens horisontfarve:** ellers dukker en mørk horisontlinje op. Ændres baggrunden, skal `FOG_COLOR` følge med.
