@@ -35,6 +35,8 @@ export class Aquarium {
   readonly camera = new THREE.PerspectiveCamera(45, 1, 0.1, 400);
   private readonly clock = new THREE.Clock();
   private elapsed = 0;
+  private dimmed = false;
+  private paused = false;
   private lookY = 3.4;
   private camHeight = 4.4;
   private camDistance = 24;
@@ -66,7 +68,7 @@ export class Aquarium {
   readonly resize = (): void => {
     const w = Math.max(1, this.host.clientWidth);
     const h = Math.max(1, this.host.clientHeight);
-    this.renderer.setPixelRatio(clampPixelRatio(window.devicePixelRatio));
+    this.renderer.setPixelRatio(clampPixelRatio(window.devicePixelRatio, this.dimmed ? 1 : 2));
     this.renderer.setSize(w, h, false);
     const fit = fitCamera(w / h);
     this.camera.aspect = w / h;
@@ -77,6 +79,17 @@ export class Aquarium {
     this.lookY = fit.lookY;
     this.placeCamera();
   };
+
+  /** Behind the drawing panel the aquarium is blurred anyway, so it renders at lower resolution. */
+  setDimmed(on: boolean): void {
+    this.dimmed = on;
+    this.resize();
+  }
+
+  /** Debug/test only: stops simulating and rendering (software GL in CI is too slow to run alongside UI tests). */
+  setPaused(on: boolean): void {
+    this.paused = on;
+  }
 
   private placeCamera(): void {
     // Slow drift; no camera control for the child in v1 (DESIGN 3.4).
@@ -89,6 +102,7 @@ export class Aquarium {
     this.clock.start();
     this.renderer.setAnimationLoop(() => {
       const dt = Math.min(this.clock.getDelta(), 0.1);
+      if (this.paused) return;
       this.update(dt);
       this.renderer.render(this.scene, this.camera);
     });

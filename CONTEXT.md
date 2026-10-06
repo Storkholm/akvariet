@@ -11,6 +11,7 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Artsvælger** | `SpeciesPicker` | Startvisningen hvor arterne svæver i bobler over akvariet; tryk på en boble for at begynde at tegne. |
 | **Tegnefladen** | `DrawingPanel` | Visningen hvor skabelonen ligger stort og kan farvelægges. Ligger oven på akvariet, som kører dæmpet bagved. |
 | **Farveblyant** | `Crayon` | Én af de 12 farver i bakken nederst til venstre. Den valgte blyant stikker længere frem end de andre. |
+| **Grundfarve** | `baseColor` | Skabelonens lyse farve på ufarvede områder. Viskelæderet maler den tilbage. |
 | **Viskelæder** | `Eraser` | Værktøj der maler skabelonens grundfarve tilbage. |
 | **Fyld-spand** | `FillBucket` | Værktøj: tryk et sted inde i figuren, og det sammenhængende område i samme farve fyldes med den valgte farve. |
 | **Stregtykkelse** | `BrushSize` | Tre faste tykkelser: tynd, mellem, tyk. |

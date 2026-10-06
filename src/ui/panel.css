@@ -1,0 +1,420 @@
+/* HTML layers on top of the aquarium: species picker (stand-in) and the drawing panel. */
+
+.ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+.ui > * {
+  pointer-events: auto;
+}
+.ui [hidden] {
+  display: none !important;
+}
+.ui button {
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- species picker (one bubble in M2) ---------- */
+.picker {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  pointer-events: none;
+}
+.bubble {
+  pointer-events: auto;
+  position: relative;
+  width: min(230px, 52vmin);
+  height: min(230px, 52vmin);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  background: radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.12) 38%, rgba(170, 225, 255, 0.16) 68%, rgba(255, 255, 255, 0.4) 100%);
+  box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.35), 0 8px 30px rgba(0, 40, 90, 0.25);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  animation: bob 5s ease-in-out infinite;
+}
+.bubble canvas {
+  width: 68% !important;
+  height: 68% !important;
+  filter: drop-shadow(0 3px 6px rgba(0, 30, 80, 0.3));
+}
+@keyframes bob {
+  50% {
+    transform: translateY(-14px) rotate(2deg);
+  }
+}
+
+/* ---------- drawing panel ---------- */
+.panel {
+  --bar-h: 72px;
+  --cw: clamp(48px, 4.4vw, 56px);
+  --crayon-h: 108px;
+  --crayon-hidden: 38px; /* how much of each crayon is tucked behind the tray */
+  --lift: 26px;
+  --stick: calc(var(--crayon-h) - var(--crayon-hidden) + var(--lift));
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgba(8, 62, 124, 0.36);
+  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(7px);
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  touch-action: none;
+}
+.panel.open {
+  opacity: 1;
+  transform: none;
+}
+
+.stage {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  cursor: crosshair;
+  touch-action: none;
+}
+.canvas-wrap {
+  position: relative;
+  filter: drop-shadow(0 8px 22px rgba(0, 30, 80, 0.45));
+}
+.canvas-wrap canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.template-overlay {
+  pointer-events: none;
+}
+
+.top-buttons {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  display: flex;
+  gap: 12px;
+}
+.round-btn {
+  width: 52px;
+  height: 52px;
+  padding: 11px;
+  border-radius: 15px;
+  border: 3px solid rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(0, 30, 80, 0.3);
+}
+.round-btn:active {
+  background: rgba(255, 255, 255, 0.36);
+}
+.round-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* tray at the bottom: crayons stick out of the top edge */
+.bottom {
+  position: relative;
+  flex: none;
+  height: calc(var(--bar-h) + var(--stick));
+}
+.crayons {
+  position: absolute;
+  left: max(14px, env(safe-area-inset-left));
+  bottom: calc(var(--bar-h) - var(--crayon-hidden));
+  display: flex;
+  z-index: 1;
+}
+.crayon {
+  position: relative;
+  width: var(--cw);
+  height: var(--crayon-h);
+  padding: 0;
+  border: 0;
+  background: none;
+  transition: transform 0.16s ease;
+}
+.crayon[aria-checked='true'] {
+  transform: translateY(calc(-1 * var(--lift)));
+  filter: drop-shadow(0 4px 5px rgba(0, 20, 60, 0.35));
+}
+.crayon-tip {
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 32px;
+  background: var(--c);
+  clip-path: polygon(50% 0, 86% 100%, 14% 100%);
+}
+.crayon-tip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.18), rgba(255, 255, 255, 0.2) 45%, rgba(0, 0, 0, 0.2));
+}
+.crayon-body {
+  position: absolute;
+  top: 30px;
+  bottom: 0;
+  left: 4%;
+  right: 4%;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.24), rgba(255, 255, 255, 0.24) 32%, rgba(0, 0, 0, 0.04) 66%, rgba(0, 0, 0, 0.26)), var(--c);
+  border-radius: 3px 3px 0 0;
+}
+.crayon-band {
+  position: absolute;
+  top: 18px;
+  height: 34px;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.5);
+  border-top: 2px solid rgba(255, 255, 255, 0.35);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.12);
+}
+
+.bar {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--bar-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* leave room for the 12 crayons on the left; tools sit on the wood to their right */
+  padding: 0 max(14px, env(safe-area-inset-right)) 0 calc(max(14px, env(safe-area-inset-left)) + 12 * var(--cw) + 18px);
+  background: linear-gradient(#f6e2b0, #e6c987);
+  border-top: 3px solid #fff4d2;
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -4px 14px rgba(0, 30, 70, 0.28);
+}
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tool-btn,
+.brush-btn {
+  width: 52px;
+  height: 52px;
+  padding: 7px;
+  border-radius: 14px;
+  border: 2px solid rgba(110, 80, 30, 0.28);
+  background: rgba(255, 255, 255, 0.55);
+  color: #5b4526;
+}
+.tool-btn[aria-pressed='true'],
+.brush-btn[aria-checked='true'] {
+  background: #fff;
+  border-color: #2f86d6;
+  box-shadow: 0 0 0 2px rgba(47, 134, 214, 0.35), 0 3px 6px rgba(0, 0, 0, 0.18);
+  transform: translateY(-3px);
+}
+.brush-group {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 17px;
+  background: rgba(120, 85, 30, 0.14);
+}
+.brush-btn {
+  width: 48px;
+  height: 48px;
+  padding: 8px;
+  border-radius: 12px;
+}
+.release-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 62px;
+  padding: 0 22px 0 16px;
+  border-radius: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  background: linear-gradient(#52b8ff, #1f7fe0);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 50, 120, 0.4);
+}
+.release-btn .icon {
+  width: 34px;
+  height: 34px;
+}
+.release-btn:active {
+  filter: brightness(1.12);
+}
+
+/* "Smid tegningen væk?" */
+.confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 20, 60, 0.5);
+}
+.confirm-box {
+  background: #fff;
+  border-radius: 28px;
+  padding: 24px 30px 26px;
+  text-align: center;
+  color: #28406a;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+.confirm-box > .icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto;
+}
+.confirm-box p {
+  margin: 8px 0 18px;
+  font-size: 24px;
+  font-weight: 800;
+}
+.confirm-actions {
+  display: flex;
+  gap: 22px;
+  justify-content: center;
+}
+.confirm-btn {
+  width: 80px;
+  height: 80px;
+  padding: 18px;
+  border-radius: 50%;
+  border: 0;
+  color: #fff;
+}
+.confirm-btn.yes {
+  background: #ee5a4a;
+}
+.confirm-btn.no {
+  background: #3bb673;
+}
+
+/* Narrower landscape screens (e.g. 1024 px iPads): no room beside the crayons, so the tools sit on
+   the wood under them (the crayons' lower halves are tucked behind the tray anyway). */
+@media (orientation: landscape) and (max-width: 1099px) {
+  .bar {
+    padding-left: max(14px, env(safe-area-inset-left));
+  }
+}
+
+/* ---------- portrait / narrow: crayons lie in a 2×6 tray above the tools ---------- */
+@media (orientation: portrait), (max-width: 760px) {
+  .panel {
+    --cw: min(60px, calc((100vw - 28px) / 6));
+    --crayon-h: 84px;
+  }
+  .bottom {
+    height: auto;
+    padding: 12px max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+    background: linear-gradient(#f6e2b0, #e6c987);
+    border-top: 3px solid #fff4d2;
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -4px 14px rgba(0, 30, 70, 0.28);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .crayons {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(6, var(--cw));
+    justify-content: center;
+    gap: 14px 0;
+    padding-top: 16px;
+  }
+  .crayon {
+    height: 74px;
+    overflow: visible;
+  }
+  .crayon[aria-checked='true'] {
+    transform: translateY(-14px);
+  }
+  .bar {
+    position: static;
+    height: auto;
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
+    border-radius: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .tools {
+    justify-content: center;
+  }
+  .tools {
+    gap: 6px;
+  }
+  .tool-btn {
+    width: 48px;
+    height: 52px;
+    padding: 6px;
+  }
+  .brush-btn {
+    width: 48px;
+    height: 48px;
+    padding: 8px;
+  }
+  .release-btn {
+    height: 60px;
+    justify-content: center;
+    padding: 0 14px;
+    font-size: 22px;
+    gap: 10px;
+  }
+  .release-btn .icon {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* short landscape screens (phones turned sideways) */
+@media (orientation: landscape) and (max-height: 520px) {
+  .panel {
+    --bar-h: 58px;
+    --crayon-h: 88px;
+    --crayon-hidden: 30px;
+    --lift: 20px;
+    --cw: 48px;
+  }
+  .tool-btn {
+    width: 46px;
+    height: 46px;
+  }
+  .brush-btn {
+    width: 42px;
+    height: 44px;
+  }
+  .release-btn {
+    height: 48px;
+    font-size: 18px;
+  }
+}
