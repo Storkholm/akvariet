@@ -182,3 +182,35 @@ export async function screenBox(page: import('@playwright/test').Page): Promise<
     return { left, right, top, bottom };
   });
 }
+
+/** Does any button of the drawing panel overlap the template outline on screen? Returns the offending labels. */
+export async function buttonsOverlappingTemplate(page: import('@playwright/test').Page, margin = 4): Promise<string[]> {
+  return page.evaluate((m) => {
+    type P = [number, number];
+    const panel = (window as unknown as { app: { panel: { template: { parts: Array<{ outline: P[] }> } } } }).app.panel;
+    const wrap = document.querySelector('.canvas-wrap') as HTMLElement;
+    const r = wrap.getBoundingClientRect();
+    const polys = panel.template.parts.map((p) => p.outline.map(([x, y]): P => [r.x + x * r.width, r.y + y * r.height]));
+    const inside = (x: number, y: number, poly: P[]) => {
+      let c = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const [xi, yi] = poly[i];
+        const [xj, yj] = poly[j];
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+      }
+      return c;
+    };
+    const bad: string[] = [];
+    for (const b of document.querySelectorAll<HTMLElement>('.home-btn, .undo-btn')) {
+      const q = b.getBoundingClientRect();
+      const [x0, y0, x1, y1] = [q.left - m, q.top - m, q.right + m, q.bottom + m];
+      const hit = polys.some(
+        (poly) =>
+          poly.some(([x, y]) => x >= x0 && x <= x1 && y >= y0 && y <= y1) ||
+          [[x0, y0], [x1, y0], [x0, y1], [x1, y1], [(x0 + x1) / 2, (y0 + y1) / 2]].some(([x, y]) => inside(x, y, poly)),
+      );
+      if (hit) bad.push(b.getAttribute('aria-label') ?? b.className);
+    }
+    return bad;
+  }, margin);
+}

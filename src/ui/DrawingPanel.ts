@@ -191,10 +191,12 @@ export class DrawingPanel {
 
   /** Squares the template into the free area above the tray and redraws the contour/eyes overlay. */
   private layout(): void {
-    const w = this.stage.clientWidth;
-    const hgt = this.stage.clientHeight;
+    // The free area is the stage minus its padding (portrait reserves a strip for the top buttons).
+    const cs = getComputedStyle(this.stage);
+    const w = this.stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const hgt = this.stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
     if (!w || !hgt) return;
-    const side = Math.max(120, Math.floor(Math.min(w, hgt) - 8));
+    const side = Math.max(120, Math.floor(Math.min(w, hgt)));
     this.canvasWrap.style.width = this.canvasWrap.style.height = `${side}px`;
     if (!this.template) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);

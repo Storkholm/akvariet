@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { drawingStats, line, newTouchPage, openPanel, pixelAt, TABLET, tap, templateToScreen, touchDrag } from './helpers';
+import { buttonsOverlappingTemplate, drawingStats, line, newTouchPage, openPanel, pixelAt, TABLET, tap, templateToScreen, touchDrag } from './helpers';
 
 const BASE = [241, 244, 246, 255];
 
@@ -154,6 +154,22 @@ test('touch targets are at least 48 px', async ({ browser }) => {
       expect(b.right, `${b.label} inside screen @${size.width}`).toBeLessThanOrEqual(size.width + 0.5);
     }
     expect(boxes.length).toBeGreaterThanOrEqual(19); // 12 crayons + 2 + 3 + eraser/bucket... + release
+    await t.ctx.close();
+  }
+});
+
+test('stående telefoner: knapper overlapper aldrig figuren, og figuren ligger aldrig under bunden', async ({ browser }) => {
+  for (const [w, h] of [[390, 844], [375, 667], [360, 640], [430, 932], [320, 568], [393, 700]]) {
+    const t = await newTouchPage(browser, { width: w, height: h });
+    await t.page.goto('/?still');
+    await openPanel(t.page);
+    expect(await buttonsOverlappingTemplate(t.page), `${w}x${h}`).toEqual([]);
+    const wrap = await t.page.locator('.canvas-wrap').boundingBox();
+    const bottom = await t.page.locator('.bottom').boundingBox();
+    const top = await t.page.locator('.round-btn').first().boundingBox();
+    expect((wrap?.y ?? 0) + (wrap?.height ?? 0), `${w}x${h}: figure above the tray`).toBeLessThanOrEqual((bottom?.y ?? 0) + 0.5);
+    expect(wrap?.y ?? 0, `${w}x${h}: figure below the top buttons`).toBeGreaterThanOrEqual((top?.y ?? 0) + (top?.height ?? 0));
+    expect(bottom?.height ?? 999, `${w}x${h}: compact tray`).toBeLessThan(290);
     await t.ctx.close();
   }
 });
