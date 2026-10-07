@@ -54,9 +54,12 @@ export async function templateToScreen(canvasWrap: Locator): Promise<(x: number,
   return (x, y) => [box.x + x * box.width, box.y + y * box.height];
 }
 
-export async function openPanel(page: import('@playwright/test').Page): Promise<void> {
-  await page.getByRole('button', { name: 'Rokke' }).click({ force: true }); // the bubble bobs forever, so it is never "stable"
+export async function openPanel(page: import('@playwright/test').Page, species: 'Rokke' | 'Skildpadde' = 'Rokke'): Promise<void> {
+  // The bubble floats and pops, so it is never "stable" for Playwright; the click is a real tap on its button.
+  await page.getByRole('button', { name: species }).click({ force: true });
   await page.locator('.panel.open').waitFor();
+  // In the real game the pop has long finished by now; with a paused aquarium (?still) we let it run out by hand.
+  await page.evaluate(() => (window as unknown as { aquarium?: { advance(s: number): void } }).aquarium?.advance(0.6));
   // Headless Chromium only advances CSS transitions when frames are produced, so poll (rAF) until the slide-in has settled.
   await page.waitForFunction(() => document.querySelector('.panel')?.getBoundingClientRect().y === 0);
 }
@@ -146,13 +149,16 @@ export async function registrationError(page: import('@playwright/test').Page, r
     const geo = c.mesh.geometry;
     const pos = geo.getAttribute('position');
     const uv = geo.getAttribute('uv');
+    const lift = geo.getAttribute('lift');
     const V = new (a.camera.position.constructor as new () => Vec)();
     let maxPx = 0;
     let rim = 0;
     for (let i = 0; i < pos.count; i++) {
-      if (Math.abs(pos.getY(i)) > 1e-6) continue; // outline vertices lie in the template plane
+      // The swim shader takes each part's lift off while the body is flat; do the same here (the ray has no lift).
+      const flatY = pos.getY(i) - (lift ? lift.getX(i) : 0);
+      if (Math.abs(flatY) > 1e-6) continue; // outline vertices lie in the template plane
       rim++;
-      V.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(c.group.matrixWorld).project(a.camera);
+      V.set(pos.getX(i), flatY, pos.getZ(i)).applyMatrix4(c.group.matrixWorld).project(a.camera);
       const sx = (V.x * 0.5 + 0.5) * a.viewport.width;
       const sy = (-V.y * 0.5 + 0.5) * a.viewport.height;
       const ex = r.x + uv.getX(i) * r.width;

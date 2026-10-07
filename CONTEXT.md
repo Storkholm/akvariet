@@ -9,6 +9,7 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Skabelon** | `Template` | Artens 2D-omrids set lige oppefra (ryggen), delt i én eller flere **dele**. Det er det barnet farvelægger, og det er grundlaget for kroppen. |
 | **Del** | `Part` | Et stykke af skabelonen, der bliver sin egen bevægelige del af kroppen (skildpadde: skjold, hoved, fire luffer; rokke: krop og hale). Alle dele deler samme tegning. |
 | **Artsvælger** | `SpeciesPicker` | Startvisningen hvor arterne svæver i bobler over akvariet; tryk på en boble for at begynde at tegne. |
+| **Boble** | `PickerBubbles` | Den gennemsigtige kugle med et ufarvet dyr i (3D), som artsvælgeren består af. Tryk på den, så popper den, og tegnefladen kommer frem. |
 | **Tegnefladen** | `DrawingPanel` | Visningen hvor skabelonen ligger stort og kan farvelægges. Ligger oven på akvariet, som kører dæmpet bagved. |
 | **Farveblyant** | `Crayon` | Én af de 12 farver i bakken nederst til venstre. Den valgte blyant stikker længere frem end de andre. |
 | **Grundfarve** | `baseColor` | Skabelonens lyse farve på ufarvede områder. Viskelæderet maler den tilbage. |

@@ -30,7 +30,7 @@ export class Creature {
 
   private readonly texture: THREE.CanvasTexture;
   private readonly material: THREE.MeshLambertMaterial;
-  private readonly uniforms: { uPhase: { value: number }; uFlap: { value: number } };
+  private readonly uniforms: { uPhase: { value: number }; uFlap: { value: number }; uTurn: { value: number } };
   private phase: number;
 
   constructor(
@@ -46,12 +46,17 @@ export class Creature {
     this.species = template.species;
     this.drawing = downscaleDrawing(drawingCanvas, 512);
     this.texture = createCreatureTexture(this.drawing, template, maxAnisotropy);
-    this.uniforms = { uPhase: { value: 0 }, uFlap: { value: 0 } };
+    this.uniforms = { uPhase: { value: 0 }, uFlap: { value: 0 }, uTurn: { value: 0 } };
     this.material = createCreatureShader(template, this.texture, this.uniforms);
     this.mesh = new THREE.Mesh(geometry, this.material);
     this.mesh.frustumCulled = false;
     this.group.add(this.mesh);
     this.phase = rng.range(0, Math.PI * 2);
+  }
+
+  /** 0 = flat as on the drawing, 1 = fully swimming. For display copies (species bubbles) that never swim for real. */
+  setUnfold(amount: number): void {
+    this.uniforms.uFlap.value = amount;
   }
 
   get mode(): 'transition' | 'swim' | 'farewell' {
@@ -95,6 +100,8 @@ export class Creature {
       this.applySwimmerPose();
       speed = this.swimmer.speed / this.swimmer.cruise;
     }
+    // How hard it is turning (−1…1): the turtle's head and back flippers follow it.
+    this.uniforms.uTurn.value = this.swimmer ? Math.max(-1, Math.min(1, this.swimmer.yawRate / this.template.swim.turnRate)) : 0;
     const { flapHz } = this.template.swim;
     this.phase += dt * Math.PI * 2 * flapHz * (0.75 + 0.25 * speed);
     this.uniforms.uPhase.value = this.phase;

@@ -34,6 +34,20 @@ export class CreatureManager {
   }
 
   /**
+   * An uncoloured creature in the template's base colour that is NOT part of the aquarium (not counted, not saved,
+   * not updated here) – the animals shown in the species bubbles.
+   */
+  display(species: Species): Creature {
+    const template = getTemplate(species);
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 512;
+    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+    ctx.fillStyle = template.baseColor;
+    ctx.fillRect(0, 0, 512, 512);
+    return new Creature(template, this.body(species), canvas, undefined, this.maxAnisotropy);
+  }
+
+  /**
    * Builds the shared body and compiles the creature shader before the first "Slip løs", so the transition
    * does not hitch on shader compilation (a visible stutter on tablets).
    */

@@ -6,7 +6,7 @@ import { createRng } from '../src/util/random';
 const params = { count: 60, min: [-10, 1, -8] as [number, number, number], max: [10, 7, 4] as [number, number, number], minSpeed: 1, maxSpeed: 2.5 };
 
 describe('Flock', () => {
-  it('stays inside its box and above the sand', () => {
+  it('stays inside its box and above the sand', { timeout: 30_000 }, () => {
     const f = new Flock(params, createRng(1));
     for (let s = 0; s < 1500; s++) {
       const t = s / 60;

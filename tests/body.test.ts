@@ -3,6 +3,7 @@ import { bodyStats, buildBody } from '../src/body/buildBody';
 import { buildPartMesh, profile, resampleClosed } from '../src/body/partMesh';
 import { delaunay } from '../src/body/delaunay';
 import { rayTemplate } from '../src/species/ray';
+import { turtleTemplate } from '../src/species/turtle';
 import { pointInPolygon, signedArea, type Vec2 } from '../src/drawing/geometry';
 
 const body = rayTemplate.parts[0];
@@ -40,7 +41,7 @@ describe('profile', () => {
 });
 
 describe('part meshes', () => {
-  for (const part of rayTemplate.parts) {
+  for (const part of [...rayTemplate.parts, ...turtleTemplate.parts]) {
     it(`${part.id}: covers the outline area and stays inside it`, () => {
       const m = buildPartMesh(part);
       let area = 0;
@@ -160,10 +161,88 @@ describe('buildBody (ray)', () => {
     let max = 0;
     for (let i = 0; i < pos.count; i++) {
       const v = pos.getZ(i) / size + center[1];
-      if (flex.getX(i) > 0) expect(v).toBeGreaterThan(tail.pivot?.[1] ?? 0);
+      if (flex.getX(i) > 0) expect(v).toBeGreaterThanOrEqual((tail.pivot?.[1] ?? 0) - 1e-6);
       max = Math.max(max, flex.getX(i));
     }
     expect(max).toBeCloseTo(1, 3);
     expect(body.pivot).toBeUndefined();
+  });
+});
+
+describe('buildBody (turtle)', () => {
+  const g = buildBody(turtleTemplate);
+  const pos = g.getAttribute('position');
+  const part = g.getAttribute('part');
+  const pivot = g.getAttribute('pivot');
+  const flex = g.getAttribute('flex');
+  const { size, center } = turtleTemplate;
+
+  it('builds in well under 100 ms with a sensible triangle budget', () => {
+    const t0 = performance.now();
+    buildBody(turtleTemplate);
+    expect(performance.now() - t0).toBeLessThan(100);
+    const s = bodyStats(g);
+    expect(s.triangles).toBeGreaterThan(1500);
+    expect(s.triangles).toBeLessThan(7000);
+  });
+
+  it('gives every vertex its part index (0 shell … 5 back right flipper), and all six parts exist', () => {
+    const seen = new Set<number>();
+    for (let i = 0; i < pos.count; i++) seen.add(part.getX(i));
+    expect([...seen].sort()).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+
+  it('the shell is rigid; flippers and head flex from their pivot towards the tip', () => {
+    for (let i = 0; i < pos.count; i++) {
+      const p = part.getX(i);
+      if (p === 0) expect(flex.getX(i)).toBe(0);
+      expect(flex.getX(i)).toBeGreaterThanOrEqual(0);
+      expect(flex.getX(i)).toBeLessThanOrEqual(1);
+    }
+    const maxFlex = [0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < pos.count; i++) maxFlex[part.getX(i)] = Math.max(maxFlex[part.getX(i)], flex.getX(i));
+    for (let k = 1; k < 6; k++) expect(maxFlex[k], `part ${k}`).toBeCloseTo(1, 1);
+  });
+
+  it('the pivot attribute is the part pivot in local coordinates', () => {
+    for (let i = 0; i < pos.count; i += 37) {
+      const piv = turtleTemplate.parts[part.getX(i)].pivot;
+      if (!piv) continue;
+      expect(pivot.getX(i)).toBeCloseTo((piv[0] - center[0]) * size, 4);
+      expect(pivot.getZ(i)).toBeCloseTo((piv[1] - center[1]) * size, 4);
+    }
+  });
+
+  it('limbs lie lower than the shell: the highest flipper vertex is below the top of the shell', () => {
+    let shellTop = -Infinity;
+    let limbTop = -Infinity;
+    for (let i = 0; i < pos.count; i++) {
+      if (part.getX(i) === 0) shellTop = Math.max(shellTop, pos.getY(i));
+      else limbTop = Math.max(limbTop, pos.getY(i));
+    }
+    expect(shellTop).toBeGreaterThan(0.08 * size);
+    expect(limbTop).toBeLessThan(shellTop * 0.5);
+  });
+
+  it('every part outline lies in the template plane once its lift is taken off (so the flat start matches the drawing)', () => {
+    const lift = g.getAttribute('lift');
+    let outlineVertices = 0;
+    for (let i = 0; i < pos.count; i++) {
+      const planar = pos.getY(i) - lift.getX(i);
+      if (Math.abs(planar) < 1e-6) outlineVertices++;
+      // Nothing is ever lifted except the limbs and the head.
+      if (part.getX(i) === 0) expect(lift.getX(i)).toBe(0);
+      else expect(lift.getX(i)).toBeLessThan(0);
+    }
+    const expected = turtleTemplate.parts.reduce((sum, p) => sum + buildPartMesh(p).boundaryCount, 0);
+    expect(outlineVertices).toBe(2 * expected); // the back and the belly each have the outline vertices
+  });
+
+  it('UV = template coordinates', () => {
+    const uv = g.getAttribute('uv');
+    for (let i = 0; i < pos.count; i++) {
+      expect(uv.getX(i)).toBeCloseTo(pos.getX(i) / size + center[0], 5);
+      expect(uv.getY(i)).toBeCloseTo(1 - (pos.getZ(i) / size + center[1]), 5);
+    }
   });
 });

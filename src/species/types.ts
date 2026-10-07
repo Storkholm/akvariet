@@ -13,6 +13,8 @@ export interface PartBody {
   dorsal: number;
   /** Max depth of the belly below the template plane, in template units. */
   ventral: number;
+  /** Shifts the whole part up (+) or down (−) from the template plane, in template units (limbs tuck in under a shell). */
+  offset?: number;
 }
 
 /** CONTEXT: Del – one piece of the template that later becomes its own movable part of the body. */
@@ -27,16 +29,17 @@ export interface Part {
 
 /** Swimming style parameters (the wave itself runs in the vertex shader). */
 export interface SwimParams {
-  style: 'ray';
+  /** Which wave runs in the vertex shader (see `patchWater`). */
+  style: 'ray' | 'turtle';
   /** Cruise speed range in world units per second. */
   cruiseSpeed: [number, number];
   /** Max turn rate in radians per second. */
   turnRate: number;
-  /** Wing beats per second at cruise speed. */
+  /** Wing/flipper beats per second at cruise speed. */
   flapHz: number;
-  /** Wing-tip travel as a fraction of the half wing span. */
+  /** Ray: wing-tip travel as a fraction of the half wing span. Turtle: front-flipper stroke angle in radians. */
   wingAmp: number;
-  /** Sideways swing of the tail tip as a fraction of the body size. */
+  /** Ray: sideways swing of the tail tip as a fraction of the body size. Turtle: steering angle of the back flippers in radians. */
   tailAmp: number;
 }
 

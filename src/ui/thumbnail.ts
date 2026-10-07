@@ -36,12 +36,3 @@ export function drawTemplate(ctx: CanvasRenderingContext2D, t: Template, size: n
     ctx.fill();
   }
 }
-
-export function templateThumbnail(t: Template, px: number, dpr = window.devicePixelRatio || 1): HTMLCanvasElement {
-  const c = document.createElement('canvas');
-  c.width = c.height = Math.round(px * dpr);
-  c.style.width = c.style.height = `${px}px`;
-  const ctx = c.getContext('2d');
-  if (ctx) drawTemplate(ctx, t, c.width);
-  return c;
-}

@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 import { clampPixelRatio } from '../util/render';
 import { CreatureManager } from '../creature/CreatureManager';
+import { SPECIES } from '../species';
 import { fitCamera, swimHalfWidth } from './cameraRig';
 import { LightRays, Particles } from './effects';
 import { FishSchool, SCHOOLS } from './fishSchool';
 import { timeUniform } from './materials';
+import { PickerBubbles } from './PickerBubbles';
 import { buildReef } from './reef';
 
 /** Fog colour; roughly the water colour at the horizon of the background gradient. */
@@ -45,6 +47,7 @@ export class Aquarium {
   private readonly particles = new Particles();
   private readonly schools: FishSchool[] = SCHOOLS.map((s) => new FishSchool(s));
   readonly creatures: CreatureManager;
+  readonly pickerBubbles: PickerBubbles;
 
   constructor(private readonly host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -63,6 +66,8 @@ export class Aquarium {
     const reef = buildReef();
     this.scene.add(reef.sand, reef.group, this.rays.group, this.particles.group);
     this.creatures.warmUp(this.renderer);
+    this.pickerBubbles = new PickerBubbles(this.camera, (sp) => this.creatures.display(sp), SPECIES);
+    this.scene.add(this.pickerBubbles.group);
     for (const s of this.schools) this.scene.add(s.mesh);
 
     this.resize();
@@ -85,6 +90,7 @@ export class Aquarium {
     this.camHeight = fit.height;
     this.lookY = fit.lookY;
     this.placeCamera();
+    this.pickerBubbles.layout({ width: w, height: h });
   };
 
   /** Behind the drawing panel the aquarium is blurred anyway, so it renders at lower resolution. */
@@ -137,6 +143,7 @@ export class Aquarium {
     this.rays.update(this.elapsed);
     this.particles.update(dt, this.elapsed);
     this.placeCamera();
+    this.pickerBubbles.update(dt, this.elapsed);
   }
 
   get time(): number {

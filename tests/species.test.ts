@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { getTemplate, TEMPLATES } from '../src/species';
-import { polygonBounds, signedArea } from '../src/drawing/geometry';
+import { getTemplate, SPECIES, TEMPLATES } from '../src/species';
+import { TURTLE_PARTS } from '../src/species/turtle';
+import { pointInPolygon, polygonBounds, signedArea } from '../src/drawing/geometry';
 import { CRAYONS } from '../src/drawing/palette';
 
 describe('ray template', () => {
@@ -48,9 +49,72 @@ describe('ray template', () => {
     expect(new Set(signs).size).toBe(1);
   });
 
-  it('turtle has no template until M5', () => {
-    expect(TEMPLATES.turtle).toBeUndefined();
-    expect(() => getTemplate('turtle')).toThrow();
+  it('every species has a template, and the picker lists both', () => {
+    expect(Object.keys(TEMPLATES).sort()).toEqual(['ray', 'turtle']);
+    expect([...SPECIES].sort()).toEqual(['ray', 'turtle']);
+    expect(getTemplate('turtle').species).toBe('turtle');
+  });
+});
+
+describe('turtle template', () => {
+  const t = getTemplate('turtle');
+  const part = (id: string) => t.parts.find((p) => p.id === id) as NonNullable<(typeof t.parts)[number]>;
+
+  it('has shell, head and four flippers in the order the swim shader expects', () => {
+    expect(t.parts.map((p) => p.id)).toEqual([...TURTLE_PARTS]);
+  });
+
+  it('stays inside the unit square with a margin', () => {
+    const b = polygonBounds(t.parts.flatMap((p) => p.outline));
+    expect(b.minX).toBeGreaterThan(0.02);
+    expect(b.maxX).toBeLessThan(0.98);
+    expect(b.minY).toBeGreaterThan(0.02);
+    expect(b.maxY).toBeLessThan(0.98);
+  });
+
+  it('is left-right symmetric', () => {
+    for (const [l, r] of [['flipperFL', 'flipperFR'], ['flipperBL', 'flipperBR']]) {
+      const [a, c] = [polygonBounds(part(l).outline), polygonBounds(part(r).outline)];
+      expect(a.minX + c.maxX).toBeCloseTo(1, 2);
+      expect(a.maxX + c.minX).toBeCloseTo(1, 2);
+      expect(a.minY).toBeCloseTo(c.minY, 3);
+      expect(a.maxY).toBeCloseTo(c.maxY, 3);
+    }
+    const eyes = t.eyes.map((e) => e.x).sort();
+    expect(eyes[0] + eyes[1]).toBeCloseTo(1, 3);
+  });
+
+  it('the flippers are rooted well under the shell and reach out beyond it; the head overlaps the shell', () => {
+    const shell = part('shell').outline;
+    for (const id of ['flipperFL', 'flipperFR', 'flipperBL', 'flipperBR', 'head']) {
+      const p = part(id);
+      expect(p.pivot, id).toBeDefined();
+      const [px, py] = p.pivot as [number, number];
+      expect(pointInPolygon(px, py, shell), `${id} pivot under the shell`).toBe(true);
+      expect(p.outline.some(([x, y]) => pointInPolygon(x, y, shell)), `${id} overlaps the shell`).toBe(true);
+      expect(p.outline.some(([x, y]) => !pointInPolygon(x, y, shell)), `${id} sticks out`).toBe(true);
+    }
+    // The flipper root (pivot side) lies at least 0.04 inside the shell outline.
+    for (const id of ['flipperFL', 'flipperFR', 'flipperBL', 'flipperBR']) {
+      const [px, py] = part(id).pivot as [number, number];
+      const d = Math.min(...shell.map(([x, y]) => Math.hypot(x - px, y - py)));
+      expect(d, id).toBeGreaterThan(0.04);
+    }
+  });
+
+  it('limbs sit below the shell plane, the shell does not', () => {
+    expect(part('shell').body.offset ?? 0).toBe(0);
+    for (const id of ['head', 'flipperFL', 'flipperFR', 'flipperBL', 'flipperBR']) expect(part(id).body.offset ?? 0, id).toBeLessThan(0);
+  });
+
+  it('all parts have the same winding', () => {
+    expect(new Set(t.parts.map((p) => Math.sign(signedArea(p.outline)))).size).toBe(1);
+  });
+
+  it('swims slower and calmer than the ray', () => {
+    expect(t.swim.style).toBe('turtle');
+    expect(t.swim.cruiseSpeed[1]).toBeLessThan(getTemplate('ray').swim.cruiseSpeed[1]);
+    expect(t.swim.flapHz).toBeLessThan(getTemplate('ray').swim.flapHz);
   });
 });
 

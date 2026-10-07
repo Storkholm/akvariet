@@ -117,11 +117,12 @@ test('M4: adult mode – hold the lock for 3 seconds, tap a creature, delete it'
   await adv(page, 5);
 
   // Find a creature that is nicely inside the picture.
+  const bubbles = await page.evaluate(() => (window as unknown as { aquarium: { pickerBubbles: { hitAreas(): Array<{ x: number; y: number; r: number }> } } }).aquarium.pickerBubbles.hitAreas());
   let victim: { id: string; x: number; y: number } | null = null;
   for (const id of (await sceneInfo(page)).ids) {
     const p = await creatureScreenPoint(page, id);
-    // Not behind the species bubble in the middle of the screen (a tap there would open the drawing panel).
-    if (p && Math.hypot(p.x - TABLET.width / 2, p.y - TABLET.height / 2) > 170) { victim = { id, ...p }; break; }
+    // Not behind a species bubble (a tap there would open the drawing panel).
+    if (p && bubbles.every((b) => Math.hypot(p.x - b.x, p.y - b.y) > b.r + 30)) { victim = { id, ...p }; break; }
   }
   expect(victim, 'a creature in view').not.toBeNull();
   const v = victim as { id: string; x: number; y: number };

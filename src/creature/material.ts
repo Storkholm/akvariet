@@ -7,12 +7,12 @@ import type { Template } from '../species/types';
 export function createCreatureShader(
   template: Template,
   map: THREE.Texture,
-  uniforms: { uPhase: { value: number }; uFlap: { value: number } },
+  uniforms: { uPhase: { value: number }; uFlap: { value: number }; uTurn: { value: number } },
 ): THREE.MeshLambertMaterial {
   const all = template.parts.flatMap((p) => p.outline);
   const b = polygonBounds(all);
   const halfSpan = ((b.maxX - b.minX) / 2) * template.size;
   return patchWater(new THREE.MeshLambertMaterial({ map }), {
-    creature: { size: template.size, halfSpan, wingAmp: template.swim.wingAmp, tailAmp: template.swim.tailAmp, uniforms },
+    creature: { style: template.swim.style, size: template.size, halfSpan, wingAmp: template.swim.wingAmp, tailAmp: template.swim.tailAmp, uniforms },
   });
 }

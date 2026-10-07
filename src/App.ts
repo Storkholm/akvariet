@@ -14,7 +14,7 @@ const PANEL_CLOSES_AT = 1.9;
 
 /** Wires the aquarium (always running) to the HTML layers on top of it (ADR 0003) and to the saved creatures (ADR 0002). */
 export class App {
-  readonly picker = new SpeciesPicker();
+  readonly picker: SpeciesPicker;
   readonly panel = new DrawingPanel();
   readonly adult: AdultMode;
   readonly keeper = new CreatureKeeper(createCreatureStore());
@@ -25,6 +25,7 @@ export class App {
   private releasing = false;
 
   constructor(root: HTMLElement, private readonly aquarium: Aquarium) {
+    this.picker = new SpeciesPicker(aquarium.pickerBubbles);
     this.adult = new AdultMode(aquarium.renderer.domElement);
     const ui = document.createElement('div');
     ui.className = 'ui';
@@ -33,10 +34,13 @@ export class App {
     this.adult.setAvailable(true);
 
     this.picker.onPick = (species) => {
-      this.picker.hide();
+      this.picker.hide(species); // the tapped bubble pops, the other one fades away
       this.adult.setAvailable(false);
-      this.aquarium.setDimmed(true);
-      this.panel.open(species);
+      // Let the pop be seen before the drawing panel slides in over it.
+      window.setTimeout(() => {
+        this.aquarium.setDimmed(true);
+        this.panel.open(species);
+      }, 220);
     };
     this.panel.onHome = () => this.backToPicker();
     this.panel.onRelease = (drawing, species) => this.release(drawing, species);

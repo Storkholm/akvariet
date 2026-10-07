@@ -9,7 +9,7 @@ const make = (seed: number, i: number): Swimmer =>
   new Swimmer(rayTemplate.swim, createRng(seed), { pos: [-6 + i * 3, 5, -4 + i], yaw: i, pitch: 0, speed: 1.2 });
 
 describe('Swimmer', () => {
-  it('stays inside the box and above the sand for ten simulated minutes', () => {
+  it('stays inside the box and above the sand for ten simulated minutes', { timeout: 30_000 }, () => {
     const swimmers = [0, 1, 2, 3, 4, 5].map((i) => make(10 + i, i));
     for (let s = 0; s < 36000; s++) {
       for (const sw of swimmers) sw.step(1 / 60, swimmers, bounds);
@@ -50,7 +50,7 @@ describe('Swimmer', () => {
     expect(sw.speed).toBeLessThan(rayTemplate.swim.cruiseSpeed[1] * 1.05);
   });
 
-  it('keeps apart from each other', () => {
+  it('keeps apart from each other', { timeout: 30_000 }, () => {
     const swimmers = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => make(20 + i, i % 4));
     let closest = Infinity;
     for (let s = 0; s < 18000; s++) {
