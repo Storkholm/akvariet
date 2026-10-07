@@ -3,8 +3,12 @@ import { clampPixelRatio } from '../util/render';
 import { CreatureManager } from '../creature/CreatureManager';
 import { SPECIES } from '../species';
 import { fitCamera, swimHalfWidth } from './cameraRig';
-import { LightRays, Particles } from './effects';
+
+const fitFov = (aspect: number): number => fitCamera(aspect).fov;
+import type { Creature } from '../creature/Creature';
+import { BubbleBursts, LightRays, Particles } from './effects';
 import { FishSchool, SCHOOLS } from './fishSchool';
+import { PixelRatioGovernor } from './governor';
 import { timeUniform } from './materials';
 import { PickerBubbles } from './PickerBubbles';
 import { buildReef } from './reef';
@@ -40,6 +44,9 @@ export class Aquarium {
   private elapsed = 0;
   private dimmed = false;
   private paused = false;
+  /** Lowers the render resolution if frames are slow (DESIGN 4.4); never raises it again. */
+  private readonly governor = new PixelRatioGovernor(2);
+  private maxRatio = 2;
   private lookY = 3.4;
   private camHeight = 4.4;
   private camDistance = 24;
@@ -48,6 +55,9 @@ export class Aquarium {
   private readonly schools: FishSchool[] = SCHOOLS.map((s) => new FishSchool(s));
   readonly creatures: CreatureManager;
   readonly pickerBubbles: PickerBubbles;
+  readonly bursts = new BubbleBursts();
+  /** A creature was tapped and is now hopping (App plays the sound). */
+  onReact?: (creature: Creature) => void;
 
   constructor(private readonly host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -67,7 +77,7 @@ export class Aquarium {
     this.scene.add(reef.sand, reef.group, this.rays.group, this.particles.group);
     this.creatures.warmUp(this.renderer);
     this.pickerBubbles = new PickerBubbles(this.camera, (sp) => this.creatures.display(sp), SPECIES);
-    this.scene.add(this.pickerBubbles.group);
+    this.scene.add(this.pickerBubbles.group, this.bursts.points);
     for (const s of this.schools) this.scene.add(s.mesh);
 
     this.resize();
@@ -77,8 +87,9 @@ export class Aquarium {
   readonly resize = (): void => {
     const w = Math.max(1, this.host.clientWidth);
     const h = Math.max(1, this.host.clientHeight);
-    this.renderer.setPixelRatio(clampPixelRatio(window.devicePixelRatio, this.dimmed ? 1 : 2));
+    this.renderer.setPixelRatio(clampPixelRatio(window.devicePixelRatio, this.dimmed ? 1 : this.maxRatio));
     this.renderer.setSize(w, h, false);
+    this.bursts.setPixelScale((h * this.renderer.getPixelRatio()) / (2 * Math.tan((fitFov(w / h) * Math.PI) / 360)));
     const fit = fitCamera(w / h);
     this.camera.aspect = w / h;
     this.camera.fov = fit.fov;
@@ -114,11 +125,28 @@ export class Aquarium {
   start(): void {
     this.clock.start();
     this.renderer.setAnimationLoop(() => {
-      const dt = Math.min(this.clock.getDelta(), 0.1);
+      const raw = this.clock.getDelta();
+      const dt = Math.min(raw, 0.1);
       if (this.paused) return;
+      // Slow frames for a couple of seconds → a lower resolution (not while dimmed: that already renders at 1×).
+      const lower = this.dimmed ? null : this.governor.sample(raw);
+      if (lower !== null) {
+        this.maxRatio = lower;
+        this.resize();
+      }
       this.update(dt);
       this.renderer.render(this.scene, this.camera);
     });
+  }
+
+  /** A tap on the water: a creature under the finger hops or somersaults in a cloud of bubbles (CONTEXT: Glædeshop). */
+  tapAt(ndcX: number, ndcY: number): Creature | null {
+    const c = this.creatures.reactAt(ndcX, ndcY);
+    if (c) {
+      this.bursts.emit(c.group.position, 28, c.template.size * 0.3);
+      this.onReact?.(c);
+    }
+    return c;
   }
 
   /** Test hook: simulate `seconds` in fixed steps and render the result once (works while paused). */
@@ -144,6 +172,12 @@ export class Aquarium {
     this.particles.update(dt, this.elapsed);
     this.placeCamera();
     this.pickerBubbles.update(dt, this.elapsed);
+    this.bursts.update(dt, this.elapsed);
+  }
+
+  /** The highest pixel ratio the game currently renders with (it only ever goes down on slow devices). */
+  get pixelRatioCap(): number {
+    return this.maxRatio;
   }
 
   get time(): number {

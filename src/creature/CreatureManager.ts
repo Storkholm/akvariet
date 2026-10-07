@@ -127,6 +127,30 @@ export class CreatureManager {
     return hit ? candidates.find((c) => c.mesh === hit.object) ?? null : null;
   }
 
+  /**
+   * A tap at a screen point: the creature there (if any, and free to react) hops or somersaults. Small fingers rarely
+   * hit a small creature exactly, so a near miss counts too: the nearest creature centre within `slack` (NDC units, 2 = the screen
+   * height, so 0.07 ≈ 30 px on a phone) is taken when the ray itself hits nothing.
+   */
+  reactAt(ndcX: number, ndcY: number, slack = 0.07): Creature | null {
+    const c = this.pick(ndcX, ndcY) ?? this.nearest(ndcX, ndcY, slack);
+    return c && c.react() ? c : null;
+  }
+
+  private nearest(ndcX: number, ndcY: number, slack: number): Creature | null {
+    this.camera.updateMatrixWorld();
+    const aspect = (this.camera as THREE.PerspectiveCamera).aspect || 1;
+    let best: Creature | null = null;
+    let bestD = slack;
+    for (const c of this.living()) {
+      const p = c.group.position.clone().project(this.camera);
+      if (p.z > 1) continue;
+      const d = Math.hypot((p.x - ndcX) * aspect, p.y - ndcY);
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    return best;
+  }
+
   update(dt: number): void {
     const swimmers = this.creatures.flatMap((c) => (c.swimmer ? [c.swimmer] : []));
     for (const c of this.creatures) c.update(dt, swimmers, this.bounds);

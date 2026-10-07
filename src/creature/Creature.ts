@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createCreatureShader } from './material';
 import { Swimmer, type SwimBounds } from './swimmer';
+import { Reaction, pickKind, type ReactionKind } from './reaction';
 import { Transition } from './Transition';
 import type { Species, Template } from '../species/types';
 import { createRng, type Rng } from '../util/random';
@@ -15,6 +16,8 @@ function newId(): string {
  * CONTEXT: Dyr. One drawn individual: species + drawing + creation time, plus its 3D body (shared
  * geometry, own texture/material) and its movement (Swimmer, or the Transition right after "Slip løs").
  */
+const APPEAR_SECONDS = 0.9;
+
 export class Creature {
   readonly id: string;
   readonly species: Species;
@@ -27,6 +30,10 @@ export class Creature {
   transition: Transition | null = null;
   /** CONTEXT: Afsked – set while the creature swims out of the picture to be removed. */
   leaving: { dir: number; t: number } | null = null;
+  /** CONTEXT: Glædeshop – set while it hops or somersaults after a tap. */
+  reaction: Reaction | null = null;
+  /** Saved creatures grow into view one by one after the page has loaded, instead of all popping up at once. */
+  private appear: { delay: number; t: number } | null = null;
 
   private readonly texture: THREE.CanvasTexture;
   private readonly material: THREE.MeshLambertMaterial;
@@ -59,8 +66,35 @@ export class Creature {
     this.uniforms.uFlap.value = amount;
   }
 
+  /** Hidden for `delay` seconds, then grows to full size with a little overshoot. */
+  appearAfter(delay: number): void {
+    this.appear = { delay, t: 0 };
+    this.group.scale.setScalar(0.0001);
+    this.group.visible = false;
+  }
+
+  private stepAppear(dt: number): void {
+    const a = this.appear;
+    if (!a) return;
+    a.t += dt;
+    const u = Math.min(1, Math.max(0, (a.t - a.delay) / APPEAR_SECONDS));
+    this.group.visible = u > 0;
+    // Ease-out with a small overshoot (back easing).
+    const k = 1.70158;
+    const e = u >= 1 ? 1 : 1 + (k + 1) * (u - 1) ** 3 + k * (u - 1) ** 2;
+    this.group.scale.setScalar(Math.max(0.0001, e));
+    if (u >= 1) this.appear = null;
+  }
+
   get mode(): 'transition' | 'swim' | 'farewell' {
     return this.leaving ? 'farewell' : this.transition ? 'transition' : 'swim';
+  }
+
+  /** A tap: hop or somersault. Ignored while it is being released, saying goodbye, or already reacting. */
+  react(kind?: ReactionKind): boolean {
+    if (this.leaving || this.transition || this.reaction) return false;
+    this.reaction = new Reaction(kind ?? pickKind(this.rng.next()));
+    return true;
   }
 
   /** Starts the farewell: the creature turns to the nearest side and swims out of the picture, a little away from the viewer. */
@@ -69,6 +103,8 @@ export class Creature {
     this.swimmer = null;
     this.transition = null;
     this.uniforms.uFlap.value = 1;
+    this.reaction = null;
+    this.mesh.rotation.x = 0;
     this.leaving = { dir: this.group.position.x >= 0 ? 1 : -1, t: 0 };
   }
 
@@ -100,11 +136,26 @@ export class Creature {
       this.applySwimmerPose();
       speed = this.swimmer.speed / this.swimmer.cruise;
     }
+    this.stepReaction(dt);
+    this.stepAppear(dt);
     // How hard it is turning (−1…1): the turtle's head and back flippers follow it.
     this.uniforms.uTurn.value = this.swimmer ? Math.max(-1, Math.min(1, this.swimmer.yawRate / this.template.swim.turnRate)) : 0;
     const { flapHz } = this.template.swim;
     this.phase += dt * Math.PI * 2 * flapHz * (0.75 + 0.25 * speed);
     this.uniforms.uPhase.value = this.phase;
+  }
+
+  /** The hop/somersault rides on top of whatever the swimmer does: a lift along world up and a flip about the wing axis. */
+  private stepReaction(dt: number): void {
+    const r = this.reaction;
+    if (!r) return;
+    const pose = r.step(dt);
+    this.group.position.y += pose.lift;
+    this.mesh.rotation.x = pose.pitch;
+    if (r.done) {
+      this.reaction = null;
+      this.mesh.rotation.x = 0;
+    }
   }
 
   private stepFarewell(dt: number): void {

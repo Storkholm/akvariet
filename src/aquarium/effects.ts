@@ -141,3 +141,118 @@ export class Particles {
     bp.needsUpdate = true;
   }
 }
+
+const BURST_VERT = `
+  attribute float aSize;
+  attribute float aAlpha;
+  uniform float uPx;
+  varying float vA;
+  void main() {
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = max(1.0, aSize * uPx / -mv.z);
+    vA = aAlpha;
+  }`;
+const BURST_FRAG = `
+  varying float vA;
+  void main() {
+    vec2 p = gl_PointCoord * 2.0 - 1.0;
+    float d = length(p);
+    if (d > 1.0) discard;
+    float ring = smoothstep(0.55, 0.95, d);
+    float spec = smoothstep(0.38, 0.0, length(p - vec2(-0.35, 0.35)));
+    vec3 col = mix(vec3(0.75, 0.92, 1.0), vec3(1.0), ring) + spec * 0.5;
+    gl_FragColor = vec4(col, clamp((0.12 + 0.7 * ring + spec * 0.6) * vA, 0.0, 1.0));
+    #include <colorspace_fragment>
+  }`;
+
+/** Small bubble clouds that rise and fade (CONTEXT: Glædeshop). One pool, one draw call; sizes are in world units. */
+export class BubbleBursts {
+  readonly points: THREE.Points;
+  private readonly pos: Float32Array;
+  private readonly vel: Float32Array;
+  private readonly age: Float32Array;
+  private readonly life: Float32Array;
+  private readonly size: Float32Array;
+  private readonly alpha: Float32Array;
+  private readonly wobble: Float32Array;
+  private next = 0;
+  private readonly rng = createRng(77);
+  private readonly material: THREE.ShaderMaterial;
+
+  constructor(private readonly capacity = 240) {
+    this.pos = new Float32Array(capacity * 3);
+    this.vel = new Float32Array(capacity * 3);
+    this.age = new Float32Array(capacity).fill(1);
+    this.life = new Float32Array(capacity).fill(1);
+    this.size = new Float32Array(capacity);
+    this.alpha = new Float32Array(capacity);
+    this.wobble = new Float32Array(capacity);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
+    geo.setAttribute('aSize', new THREE.BufferAttribute(this.size, 1));
+    geo.setAttribute('aAlpha', new THREE.BufferAttribute(this.alpha, 1));
+    this.material = new THREE.ShaderMaterial({
+      vertexShader: BURST_VERT,
+      fragmentShader: BURST_FRAG,
+      uniforms: { uPx: { value: 600 } },
+      transparent: true,
+      depthWrite: false,
+      fog: false,
+    });
+    this.points = new THREE.Points(geo, this.material);
+    this.points.frustumCulled = false;
+    this.points.renderOrder = 15;
+  }
+
+  /** Pixels per world unit at distance 1 (viewport height / 2·tan(fov/2), in device pixels). */
+  setPixelScale(px: number): void {
+    this.material.uniforms.uPx.value = px;
+  }
+
+  /** How many bubbles are alive right now. */
+  get active(): number {
+    let n = 0;
+    for (let i = 0; i < this.capacity; i++) if (this.age[i] < this.life[i]) n++;
+    return n;
+  }
+
+  emit(center: THREE.Vector3, count: number, radius: number): void {
+    for (let k = 0; k < count; k++) {
+      const i = this.next;
+      this.next = (this.next + 1) % this.capacity;
+      const r = this.rng;
+      const a = r.range(0, Math.PI * 2);
+      const rr = radius * Math.sqrt(r.next());
+      this.pos.set([center.x + Math.cos(a) * rr, center.y + r.range(-0.3, 0.3) * radius, center.z + Math.sin(a) * rr], i * 3);
+      this.vel.set([r.range(-0.15, 0.15), r.range(0.7, 1.5), r.range(-0.15, 0.15)], i * 3);
+      this.age[i] = 0;
+      this.life[i] = r.range(1.4, 2.4);
+      this.size[i] = r.range(0.1, 0.3);
+      this.wobble[i] = r.range(0, 6.28);
+      this.alpha[i] = 1;
+    }
+    this.flag();
+  }
+
+  update(dt: number, time: number): void {
+    for (let i = 0; i < this.capacity; i++) {
+      if (this.age[i] >= this.life[i]) { this.alpha[i] = 0; continue; }
+      this.age[i] += dt;
+      const u = this.age[i] / this.life[i];
+      this.pos[i * 3] += (this.vel[i * 3] + Math.sin(time * 4 + this.wobble[i]) * 0.12) * dt;
+      this.pos[i * 3 + 1] += this.vel[i * 3 + 1] * dt;
+      this.pos[i * 3 + 2] += (this.vel[i * 3 + 2] + Math.cos(time * 3.4 + this.wobble[i]) * 0.1) * dt;
+      // Quick fade in, long fade out.
+      this.alpha[i] = Math.min(1, u * 8) * (1 - u * u);
+    }
+    this.flag();
+  }
+
+  private flag(): void {
+    const g = this.points.geometry;
+    g.getAttribute('position').needsUpdate = true;
+    g.getAttribute('aAlpha').needsUpdate = true;
+    g.getAttribute('aSize').needsUpdate = true;
+  }
+}

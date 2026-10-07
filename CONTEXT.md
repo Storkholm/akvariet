@@ -26,12 +26,13 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Baggrundsliv** | `AmbientLife` | Simple fiskestimer og bevægelige planter der ikke er tegnet af barnet og ikke gemmes. |
 | **Rev** | `Reef` | Akvariets faste pynt på bunden: koraller, planter, sten og sand. Bygges i kode (seedet), ikke tegnet af barnet. |
 | **Fiskestime** | `FishSchool` | Én flok af baggrundslivet (boids) der tegnes med instancing. Akvariet har flere stimer med hver sin fiskeart. |
-| **Glædeshop** | `react()` | Det et dyr gør, når man trykker på det i akvariet: lille hop eller salto + bobler + lyd. |
+| **Glædeshop** | `react()` | Det et dyr gør, når man trykker på det i akvariet: lille hop (60 %) eller salto (40 %) + bobler (`BubbleBursts`) + lyd. Et tryk lige ved siden af tæller også. |
 | **Svømmer** | `Swimmer` | Bevægelsestilstanden for ét dyr i akvariet: position, retning, fart og næste mål. Ren logik uden tegning; styrer uden om sand, overflade, vægge og andre dyr. |
 | **Overgang** | `Transition` | Øjeblikket efter Slip løs: den flade tegning bliver til krop på samme sted og i samme størrelse, folder sig ud, drejer og svømmer ind i akvariet. |
 | **Loft** | `MAX_CREATURES` | Højst 30 dyr svømmer i akvariet. Ved nr. 31 tager det ældste dyr afsked. |
 | **Dyrelager** | `CreatureStore` | Stedet på enheden (IndexedDB) hvor dyrene gemmes mellem besøg. Kun det barnet har tegnet gemmes: art, tegning (512×512 PNG) og oprettelsestidspunkt. |
 | **Afsked** | `farewell()` | Når akvariet er fuldt og et nyt dyr kommer ind, svømmer det ældste dyr ud af billedet og slettes. |
+| **Lyd** | `AudioEngine` | Alle lyde, lavet med Web Audio i koden (ingen lydfiler): en blød tone pr. farveblyant (12 toner i en pentatonisk skala fra C4), svup ved Slip løs, pop ved boblen, bobler ved glædeshop, bloop ved sletning og en svag underlig brummen i vandet. Starter først efter første tryk; lydknappen (højttaler, øverst til højre) slår det fra, og valget huskes. |
 | **Voksentilstand** | `AdultMode` | Skjult tilstand (hold låse-ikonet nede i 3 sek.), hvor man kan slette enkelte dyr. |
 
 ## Undgå

@@ -15,6 +15,8 @@ export class DrawingPanel {
   readonly element: HTMLElement;
   onHome?: () => void;
   onRelease?: (drawing: Drawing, species: Species) => void;
+  /** A crayon was picked by the child (not the automatic first one when the panel opens). */
+  onCrayon?: (index: number) => void;
 
   private drawing: Drawing | null = null;
   private template: Template | null = null;
@@ -166,7 +168,7 @@ export class DrawingPanel {
   }
 
   private selectCrayon(i: number, sound = true): void {
-    void sound; // "pling" arrives with the audio in M6
+    if (sound) this.onCrayon?.(i);
     this.crayonIndex = i;
     this.crayonButtons.forEach((b, j) => b.setAttribute('aria-checked', String(i === j)));
     if (this.tool === 'eraser') this.setTool('crayon');

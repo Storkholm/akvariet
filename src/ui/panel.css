@@ -537,3 +537,28 @@
   border-radius: 14px;
   background: #e8eef4;
 }
+
+/* ---------- sound button (DESIGN 3.6): a loudspeaker in the top right corner ---------- */
+.sound-btn {
+  position: absolute;
+  top: max(6px, env(safe-area-inset-top));
+  right: max(6px, env(safe-area-inset-right));
+  z-index: 6;
+  width: 48px;
+  height: 48px;
+  padding: 11px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.85);
+  opacity: 0.8;
+}
+.sound-btn[aria-pressed='false'] {
+  opacity: 0.6;
+}
+/* While drawing in portrait the undo button sits in the top right corner: the speaker moves in beside it. */
+@media (orientation: portrait), (max-width: 760px) {
+  [data-view='drawing'] .sound-btn {
+    right: calc(max(8px, env(safe-area-inset-right)) + 52px);
+  }
+}
