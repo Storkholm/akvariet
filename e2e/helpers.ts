@@ -214,3 +214,69 @@ export async function buttonsOverlappingTemplate(page: import('@playwright/test'
     return bad;
   }, margin);
 }
+
+type AppM4 = {
+  app: {
+    restored: Promise<void>;
+    keeper: { restore(): Promise<Array<{ id: string; createdAt: number }>>; add(c: unknown): Promise<boolean> };
+    adult: { active: boolean };
+  };
+  aquarium: {
+    camera: { position: { constructor: new () => Vec }; updateMatrixWorld(): void };
+    viewport: { width: number; height: number };
+    advance(s: number): void;
+    creatures: { creatures: Array<{ id: string; mode: string; group: { position: Vec; updateMatrixWorld(f: boolean): void }; drawing: HTMLCanvasElement }>; living(): unknown[] };
+  };
+};
+
+/** Puts `n` saved creatures straight into IndexedDB (oldest = seed-00), as if they had been released on earlier visits. */
+export async function seedCreatures(page: import('@playwright/test').Page, n: number): Promise<void> {
+  await page.evaluate(async (count) => {
+    const w = window as unknown as AppM4;
+    const hues = ['#e8332a', '#2150c8', '#1f8f4a', '#8a45c6', '#f58a1f', '#19bfb0', '#f7a6c8', '#8a5530'];
+    for (let i = 0; i < count; i++) {
+      const c = document.createElement('canvas');
+      c.width = c.height = 512;
+      const g = c.getContext('2d') as CanvasRenderingContext2D;
+      g.fillStyle = hues[i % hues.length];
+      g.fillRect(0, 0, 512, 512);
+      g.fillStyle = '#f9d21e';
+      for (let x = 60; x < 512; x += 90) g.fillRect(x, 0, 36, 512);
+      const blob = await new Promise<Blob>((res) => c.toBlob((b) => res(b as Blob), 'image/png'));
+      await w.app.keeper.add({ id: `seed-${String(i).padStart(2, '0')}`, species: 'ray', drawing: blob, createdAt: 1_000_000 + i });
+    }
+  }, n);
+}
+
+/** Reloads the page (keeping IndexedDB) and waits until the saved creatures are back in the water. */
+export async function reloadAndRestore(page: import('@playwright/test').Page): Promise<void> {
+  await page.reload();
+  await page.waitForFunction(() => !!(window as unknown as AppM4).app);
+  await page.evaluate(() => (window as unknown as AppM4).app.restored);
+}
+
+export async function storedIds(page: import('@playwright/test').Page): Promise<string[]> {
+  return page.evaluate(async () => (await (window as unknown as AppM4).app.keeper.restore()).map((c) => c.id).sort());
+}
+
+export async function sceneInfo(page: import('@playwright/test').Page): Promise<{ total: number; living: number; modes: string[]; ids: string[] }> {
+  return page.evaluate(() => {
+    const m = (window as unknown as AppM4).aquarium.creatures;
+    return { total: m.creatures.length, living: m.living().length, modes: m.creatures.map((c) => c.mode), ids: m.creatures.map((c) => c.id) };
+  });
+}
+
+/** Screen position (CSS px) of the creature at `index`, or null when it is outside the picture. */
+export async function creatureScreenPoint(page: import('@playwright/test').Page, id: string): Promise<{ x: number; y: number } | null> {
+  return page.evaluate((cid) => {
+    const w = window as unknown as AppM4;
+    const a = w.aquarium;
+    const c = a.creatures.creatures.find((k) => k.id === cid);
+    if (!c) return null;
+    a.camera.updateMatrixWorld();
+    const v = new (a.camera.position.constructor as new () => Vec)();
+    v.set(c.group.position.x, c.group.position.y, c.group.position.z).project(a.camera);
+    if (Math.abs(v.x) > 0.85 || Math.abs(v.y) > 0.85 || v.z > 1) return null;
+    return { x: (v.x * 0.5 + 0.5) * a.viewport.width, y: (-v.y * 0.5 + 0.5) * a.viewport.height };
+  }, id);
+}

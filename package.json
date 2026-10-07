@@ -13,6 +13,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "idb-keyval": "^6.3.0",
     "three": "^0.186.1"
   },
   "devDependencies": {

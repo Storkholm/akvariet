@@ -3,6 +3,7 @@ import { buildBody } from '../body/buildBody';
 import { getTemplate, type Species } from '../species';
 import { createRng } from '../util/random';
 import { Creature } from './Creature';
+import { MAX_CREATURES, planFarewells } from './limits';
 import type { SwimBounds } from './swimmer';
 import { Transition, type ViewRect } from './Transition';
 
@@ -11,6 +12,10 @@ export class CreatureManager {
   readonly creatures: Creature[] = [];
   bounds: SwimBounds = { min: [-12, 2, -9], max: [12, 8.8, 6], floorMargin: 3 };
   private readonly bodies = new Map<Species, THREE.BufferGeometry>();
+  private readonly raycaster = new THREE.Raycaster();
+  private readonly ndc = new THREE.Vector3();
+  /** Called when a creature has swum out of the picture (or been deleted) and is gone for good. */
+  onGone?: (creature: Creature) => void;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -86,8 +91,39 @@ export class CreatureManager {
     creature.dispose();
   }
 
+  /** Creatures that count towards the cap (everyone except those already saying goodbye). */
+  living(): Creature[] {
+    return this.creatures.filter((c) => !c.leaving);
+  }
+
+  /** Makes room for `incoming` new creatures: the oldest ones swim away (CONTEXT: Afsked). Returns who is leaving. */
+  makeRoom(incoming = 1, max = MAX_CREATURES): Creature[] {
+    const leaving = planFarewells(this.living(), incoming, max);
+    for (const c of leaving) c.beginFarewell();
+    return leaving;
+  }
+
+  /** The creature under a screen point (normalised device coordinates −1…1), or null. Creatures leaving are ignored. */
+  pick(ndcX: number, ndcY: number): Creature | null {
+    this.camera.updateMatrixWorld();
+    this.raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+    const candidates = this.living();
+    for (const c of candidates) c.group.updateMatrixWorld(true);
+    const hit = this.raycaster.intersectObjects(candidates.map((c) => c.mesh), false)[0];
+    return hit ? candidates.find((c) => c.mesh === hit.object) ?? null : null;
+  }
+
   update(dt: number): void {
     const swimmers = this.creatures.flatMap((c) => (c.swimmer ? [c.swimmer] : []));
     for (const c of this.creatures) c.update(dt, swimmers, this.bounds);
+    // A creature that has said goodbye is removed once it is out of the picture.
+    for (const c of [...this.creatures]) {
+      if (!c.leaving) continue;
+      this.ndc.copy(c.group.position).project(this.camera);
+      if (Math.abs(this.ndc.x) > 1.4 || Math.abs(this.ndc.y) > 1.4 || c.leaving.t > 25) {
+        this.remove(c);
+        this.onGone?.(c);
+      }
+    }
   }
 }

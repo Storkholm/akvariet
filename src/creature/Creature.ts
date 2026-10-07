@@ -25,6 +25,8 @@ export class Creature {
   readonly drawing: HTMLCanvasElement;
   swimmer: Swimmer | null = null;
   transition: Transition | null = null;
+  /** CONTEXT: Afsked – set while the creature swims out of the picture to be removed. */
+  leaving: { dir: number; t: number } | null = null;
 
   private readonly texture: THREE.CanvasTexture;
   private readonly material: THREE.MeshLambertMaterial;
@@ -52,8 +54,17 @@ export class Creature {
     this.phase = rng.range(0, Math.PI * 2);
   }
 
-  get mode(): 'transition' | 'swim' {
-    return this.transition ? 'transition' : 'swim';
+  get mode(): 'transition' | 'swim' | 'farewell' {
+    return this.leaving ? 'farewell' : this.transition ? 'transition' : 'swim';
+  }
+
+  /** Starts the farewell: the creature turns to the nearest side and swims out of the picture, a little away from the viewer. */
+  beginFarewell(): void {
+    if (this.leaving) return;
+    this.swimmer = null;
+    this.transition = null;
+    this.uniforms.uFlap.value = 1;
+    this.leaving = { dir: this.group.position.x >= 0 ? 1 : -1, t: 0 };
   }
 
   /** Starts free swimming at a given pose (used by the Transition hand-over and when loading saved creatures). */
@@ -76,6 +87,9 @@ export class Creature {
         this.transition = null;
         this.startSwimming([position.x, position.y, position.z], yaw, pitch, sp);
       }
+    } else if (this.leaving) {
+      this.stepFarewell(dt);
+      speed = 1.3;
     } else if (this.swimmer) {
       this.swimmer.step(dt, others, bounds);
       this.applySwimmerPose();
@@ -84,6 +98,23 @@ export class Creature {
     const { flapHz } = this.template.swim;
     this.phase += dt * Math.PI * 2 * flapHz * (0.75 + 0.25 * speed);
     this.uniforms.uPhase.value = this.phase;
+  }
+
+  private stepFarewell(dt: number): void {
+    const f = this.leaving;
+    if (!f) return;
+    f.t += dt;
+    // Face sideways (towards the nearest edge) and slightly into the picture; turn at most 0.5 rad/s.
+    const targetYaw = Math.atan2(-f.dir, 0.35);
+    let d = targetYaw - this.group.rotation.y;
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    this.group.rotation.set(0.05, this.group.rotation.y + Math.max(-0.5 * dt, Math.min(0.5 * dt, d)), 0, 'YXZ');
+    const speed = Math.min(3.5, 1.4 + f.t * 0.7);
+    const yaw = this.group.rotation.y;
+    this.group.position.x += -Math.sin(yaw) * speed * dt;
+    this.group.position.z += -Math.cos(yaw) * speed * dt;
+    this.group.position.y += 0.15 * dt;
   }
 
   private applySwimmerPose(): void {

@@ -487,3 +487,68 @@
     font-size: 18px;
   }
 }
+
+/* ---------- voksentilstand (DESIGN 3.5): discreet lock, visible frame, delete question ---------- */
+.adult {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.adult-lock {
+  pointer-events: auto;
+  position: absolute;
+  left: max(6px, env(safe-area-inset-left));
+  bottom: max(6px, env(safe-area-inset-bottom));
+  width: 48px;
+  height: 48px;
+  padding: 11px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.7);
+  opacity: 0.5;
+}
+.adult-lock .lock-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  color: #ffd166;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+}
+.adult-lock.holding {
+  opacity: 1;
+}
+.adult-lock.holding .lock-ring {
+  animation: lock-fill 3s linear forwards;
+}
+@keyframes lock-fill {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.adult-lock.on {
+  opacity: 1;
+  background: #f5a623;
+  color: #fff;
+}
+.adult-frame {
+  position: absolute;
+  inset: 0;
+  border: 8px solid #f5a623;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.7);
+}
+.adult-confirm {
+  pointer-events: auto;
+}
+.adult-thumb {
+  display: block;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto;
+  border-radius: 14px;
+  background: #e8eef4;
+}
