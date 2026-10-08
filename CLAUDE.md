@@ -15,4 +15,8 @@
 - Er noget i DESIGN.md uklart eller umuligt, så vælg den enkleste løsning der holder designprincipperne (afsnit 2), skriv valget under "Åbne spørgsmål" i DESIGN.md, og fortsæt.
 
 ## Kommandoer
-(udfyldes i M0: `npm run dev`, `npm test`, `npm run test:e2e`, `npm run build`)
+- `npm run dev` – dev-server (Vite)
+- `npm test` – Vitest (logik)
+- `npm run test:e2e` – Playwright (bygger, kører headless Chromium med touch, gemmer skærmbilleder i `docs/screenshots/`)
+- `npm run lint` / `npm run typecheck`
+- `npm run build` – produktionsbuild til `dist/` (GitHub Pages via `.github/workflows/pages.yml`)
