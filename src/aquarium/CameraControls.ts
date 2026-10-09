@@ -177,6 +177,7 @@ export class CameraControls {
     };
     t.onDragEnd = (vx, vy) => {
       this.rig.dragging = false;
+      if (!this.dragEnabled) return; // (samurai mode: a swipe is a sword cut, it does not glide the camera on)
       const upp = this.host.worldPerPixel(this.rig.zoom);
       if (Math.hypot(vx, vy) > 120) this.rig.fling(-vx * upp * 0.6, vy * upp * 0.6);
     };

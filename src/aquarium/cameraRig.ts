@@ -78,6 +78,11 @@ export class CameraRig {
     return Math.max(0, this.worldHalf - this.halfWidthAtZoom1 / zoom);
   }
 
+  /** How far the picture reaches to each side of the camera at the middle of the aquarium, at the current zoom. */
+  get viewHalfWidth(): number {
+    return this.halfWidthAtZoom1 / this.zoom;
+  }
+
   get following(): boolean {
     return this.followFn !== null;
   }

@@ -6,6 +6,8 @@ import { Creature } from './Creature';
 import { MAX_CREATURES, planFarewells } from './limits';
 import type { SwimBounds } from './swimmer';
 import { Transition, type ViewRect } from './Transition';
+import { splitBody, type Fragment } from '../samurai/Fragment';
+import { segmentHitsPolygon, type P2 } from '../samurai/slashGeometry';
 
 /** Everything that swims in the aquarium (CONTEXT: Dyr) and the shared 3D bodies per species. */
 export class CreatureManager {
@@ -157,6 +159,49 @@ export class CreatureManager {
     return best;
   }
 
+  /**
+   * CONTEXT: Hug (ADR 0008). The creatures whose body the swipe a→b crosses on the screen (pixels in a canvas of `viewport`).
+   * Only creatures that swim freely can be cut: not one that is being released, saying goodbye or growing in.
+   */
+  crossed(a: P2, b: P2, viewport: { width: number; height: number }): Creature[] {
+    this.camera.updateMatrixWorld();
+    const tanHalf = Math.tan((this.camera.fov * Math.PI) / 360) / this.camera.zoom;
+    const hits: Creature[] = [];
+    const v = new THREE.Vector3();
+    for (const c of this.living()) {
+      if (c.mode !== 'swim' || !c.group.visible) continue;
+      // Cheap first test: is the swipe anywhere near the creature at all?
+      const centre = v.copy(c.group.position).project(this.camera);
+      if (centre.z > 1) continue;
+      const cx = (centre.x * 0.5 + 0.5) * viewport.width;
+      const cy = (-centre.y * 0.5 + 0.5) * viewport.height;
+      const dist = c.group.position.distanceTo(this.camera.position);
+      const pxPerUnit = viewport.height / (2 * dist * tanHalf);
+      const reach = c.template.size * 0.75 * pxPerUnit;
+      if (distanceToSegment([cx, cy], a, b) > reach) continue;
+      c.group.updateMatrixWorld(true);
+      const { size, center } = c.template;
+      const hit = c.template.parts.some((part) => {
+        const poly: P2[] = part.outline.map(([u, w]) => {
+          const p = v.set((u - center[0]) * size, 0, (w - center[1]) * size).applyMatrix4(c.mesh.matrixWorld).project(this.camera);
+          return [(p.x * 0.5 + 0.5) * viewport.width, (-p.y * 0.5 + 0.5) * viewport.height] as P2;
+        });
+        return segmentHitsPolygon(a, b, poly);
+      });
+      if (hit) hits.push(c);
+    }
+    return hits;
+  }
+
+  /** Cuts a creature in two along a world plane: it is taken out of the water and its two pieces take its place. */
+  cut(creature: Creature, plane: THREE.Plane): [Fragment, Fragment] {
+    creature.group.updateMatrixWorld(true);
+    const body = creature.takeBodyForCut();
+    const pieces = splitBody(body, { group: creature.group, mesh: creature.mesh }, plane, () => creature.rng.next());
+    this.remove(creature);
+    return pieces;
+  }
+
   update(dt: number): void {
     const swimmers = this.creatures.flatMap((c) => (c.swimmer ? [c.swimmer] : []));
     for (const c of this.creatures) c.update(dt, swimmers, this.bounds);
@@ -170,4 +215,12 @@ export class CreatureManager {
       }
     }
   }
+}
+
+function distanceToSegment(p: P2, a: P2, b: P2): number {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const l2 = dx * dx + dy * dy;
+  const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2));
+  return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
 }

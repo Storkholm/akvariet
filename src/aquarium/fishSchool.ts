@@ -3,7 +3,7 @@ import { Flock, type Vec3 } from './boids';
 import { patchWater } from './materials';
 import { createRng } from '../util/random';
 
-type Pattern = 'plain' | 'tang' | 'banner' | 'sardine';
+type Pattern = 'plain' | 'tang' | 'banner' | 'sardine' | 'shark';
 
 export interface SchoolSpec {
   count: number;
@@ -43,6 +43,9 @@ export function fishGeometry(length: number, heightRatio: number, pattern: Patte
       }
       case 'sardine':
         return col(yn > 0.1 ? 0xb8c8d8 : 0xffffff);
+      case 'shark':
+        // Cleanup sharks (CONTEXT: Rensehajer): plain grey above, pale below, darker fins – a friendly cartoon shark.
+        return part === 'body' ? col(yn > -0.12 ? 0x7e8a98 : 0xe6ebf0) : col(0x5f6b78);
       default:
         return part === 'body' ? col(0xffffff).lerp(col(0xffe0d0), yn < 0 ? 0.5 : 0) : col(0xffd0b0);
     }

@@ -186,6 +186,35 @@ export function bloop(ctx: BaseAudioContext, out: AudioNode, t: number): number 
   return 0.4;
 }
 
+/**
+ * The gong that starts samurai mode (ADR 0008): a low, slightly inharmonic bell with a long tail. Soft attack, nothing sharp.
+ */
+export function gong(ctx: BaseAudioContext, out: AudioNode, t: number): number {
+  const dur = 2.6;
+  const parts: Array<[number, number]> = [[98, 0.26], [147.6, 0.17], [203, 0.1], [319, 0.05]];
+  for (const [f, peak] of parts) {
+    const g = envelope(ctx, out, t, 0.012, peak, dur * (f < 150 ? 1 : 0.6));
+    tone(ctx, g, t, 'sine', f * 1.012, f, 0.35, dur);
+  }
+  return dur;
+}
+
+/** The "ping" of a clean cut: two bright, short, high notes (a fifth apart), a little like a blade ringing. */
+export function cutPing(ctx: BaseAudioContext, out: AudioNode, t: number): number {
+  pling(ctx, out, t, 1318.5, { attack: 0.003, decay: 0.28, overtone: 0.4, peak: 0.16 });
+  pling(ctx, out, t + 0.045, 1975.5, { attack: 0.003, decay: 0.22, overtone: 0.3, peak: 0.1 });
+  return 0.4;
+}
+
+/** The fallback for the sharks' "nam" (when no recording exists): a soft, quick, low chomp. */
+export function nam(ctx: BaseAudioContext, out: AudioNode, t: number): number {
+  const g = envelope(ctx, out, t, 0.006, 0.26, 0.16);
+  tone(ctx, g, t, 'triangle', 210, 120, 0.1, 0.2);
+  const g2 = envelope(ctx, out, t + 0.12, 0.006, 0.2, 0.14);
+  tone(ctx, g2, t + 0.12, 'triangle', 180, 95, 0.1, 0.18);
+  return 0.3;
+}
+
 export interface AmbienceHandle {
   stop(): void;
 }

@@ -44,6 +44,10 @@ export const ICONS = {
   pencil: S(
     '<g transform="translate(12 12) rotate(45) scale(1.28) translate(-12 -12.2)"><path d="M9.2 2.8h5.6v13H9.2z" fill="#f9d21e" stroke="#7a5a10" stroke-width=".7" stroke-linejoin="round"/><path d="M9.2 15.8h5.6L12 21.4z" fill="#f3d6a6"/><path d="M10.8 19.2h2.4L12 21.4z" fill="currentColor"/><path d="M9.2 2.8h5.6v2.6H9.2z" fill="#f59ab4"/><path d="M9.2 5.4h5.6v1.2H9.2z" fill="#cfd6e4"/></g>',
   ),
+  // A katana: a long, slightly curved blade running from the lower left to the upper right, a guard and a wrapped grip.
+  sword: S(
+    '<path d="M21.2 2.6c-.6 3.2-4.2 9.4-10.1 14.6l-1.5-1.5C14.8 9.8 18.9 4.8 21.2 2.6z" fill="#f4f7fb" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M7.6 14.4l2 2-1.2 1.2-2-2z" fill="#f5c542" stroke="currentColor" stroke-width="1"/><path d="M8.4 15.6 4 20" stroke="#8a3b2a" stroke-width="3" stroke-linecap="round"/><path d="M5.8 17.4l1.6 1.6M4.7 18.5 6.3 20.1" stroke="#f1d9a7" stroke-width=".9" stroke-linecap="round"/>',
+  ),
   trash: S(
     '<path d="M5 7h14M9.5 7V4.8h5V7M7 7l.8 12.2a1 1 0 0 0 1 .9h6.4a1 1 0 0 0 1-.9L17 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   ),

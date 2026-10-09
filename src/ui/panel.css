@@ -689,3 +689,62 @@
 .view-toggle:active {
   filter: brightness(1.12);
 }
+
+/* ---------- samurai mode (DESIGN 8.7, ADR 0008): sword button top left, red-gold frame, glowing swipe ---------- */
+.samurai {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.samurai-btn {
+  pointer-events: auto;
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  left: max(8px, env(safe-area-inset-left));
+  width: 56px;
+  height: 56px;
+  padding: 12px;
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  background: linear-gradient(#b3322c, #7d1c1a);
+  color: #fff3d6;
+  box-shadow: 0 3px 10px rgba(60, 0, 0, 0.4);
+}
+.samurai-btn .sword-ring {
+  position: absolute;
+  inset: -3px;
+  width: calc(100% + 6px);
+  height: calc(100% + 6px);
+  transform: rotate(-90deg);
+  color: #ffd166;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+}
+.samurai-btn.holding .sword-ring {
+  animation: lock-fill 2s linear forwards;
+}
+.samurai-btn.on {
+  background: linear-gradient(#ffd166, #e0a020);
+  color: #6a1512;
+  box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.55), 0 3px 12px rgba(60, 0, 0, 0.4);
+}
+.samurai-frame {
+  position: absolute;
+  inset: 0;
+  border: 5px solid transparent;
+  border-image: linear-gradient(135deg, #c8302a, #ffd166 35%, #c8302a 65%, #ffd166) 1;
+  box-shadow: inset 0 0 28px rgba(200, 48, 42, 0.35);
+}
+.slash-trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+/* The adult lock steps aside while samurai mode is on (and the sword while adult mode is on – App decides). */
+@media (orientation: portrait), (max-width: 760px) {
+  [data-view='drawing'] .samurai-btn {
+    display: none;
+  }
+}

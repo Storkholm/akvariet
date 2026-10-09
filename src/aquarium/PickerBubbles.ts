@@ -199,7 +199,7 @@ export class PickerBubbles {
 
   /** True once the row has floated away completely (nothing left to tap). */
   get foldedAway(): boolean {
-    return this.items.every((it) => it.fold >= 1);
+    return this.items.every((it) => it.fold >= 0.999); // (not exactly 1: the last bubble's fold ends at 0.6/0.6 up to rounding)
   }
 
   private foldOffset(it: Item): number {
@@ -307,7 +307,7 @@ export class PickerBubbles {
       if (it.state === 'hidden') continue;
       // Bubbles off the side of the screen (or floated away) are not drawn at all.
       const cyEff = it.cy + this.foldOffset(it);
-      it.root.visible = it.fold < 1 && it.cx + it.r * 1.5 > 0 && it.cx - it.r * 1.5 < w;
+      it.root.visible = it.fold < 0.999 && it.cx + it.r * 1.5 > 0 && it.cx - it.r * 1.5 < w;
       if (!it.root.visible) continue;
       const foldScale = 1 - 0.12 * it.fold;
       ndc.set((it.cx / w) * 2 - 1, -((cyEff / h) * 2 - 1), 0.5).unproject(cam).sub(cam.position).normalize();

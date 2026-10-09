@@ -12,6 +12,10 @@ import { FishSchool, SCHOOLS } from './fishSchool';
 import { PixelRatioGovernor } from './governor';
 import { timeUniform } from './materials';
 import { PickerBubbles } from './PickerBubbles';
+import { CleanupSharks, type Living } from '../samurai/CleanupSharks';
+import type { Fragment } from '../samurai/Fragment';
+import { Fragments } from '../samurai/Fragments';
+import { cutPlane, type P2 } from '../samurai/slashGeometry';
 import { buildReef, type Reef } from './reef';
 
 /** Fog colour; roughly the water colour at the horizon of the background gradient. */
@@ -63,7 +67,12 @@ export class Aquarium {
   readonly creatures: CreatureManager;
   readonly pickerBubbles: PickerBubbles;
   readonly bursts = new BubbleBursts();
+  /** CONTEXT: Stykker and Rensehajer (ADR 0008). */
+  readonly fragments: Fragments;
+  readonly sharks: CleanupSharks;
   private readonly reef: Reef;
+  /** A shark bit a piece (App plays the sound). */
+  onBite?: (piece: Fragment) => void;
   /** A creature was tapped and is now hopping (App plays the sound). */
   onReact?: (creature: Creature) => void;
 
@@ -88,6 +97,13 @@ export class Aquarium {
     this.creatures.warmUp(this.renderer);
     this.pickerBubbles = new PickerBubbles(this.camera, (sp) => this.creatures.display(sp), options.slots ?? SPECIES);
     this.scene.add(this.pickerBubbles.group, this.bursts.points);
+    this.renderer.localClippingEnabled = true; // the pieces of a cut creature are clipped by their own planes
+    this.fragments = new Fragments(this.scene);
+    this.sharks = new CleanupSharks(this.scene);
+    this.sharks.onBite = (f) => {
+      this.bursts.emit(f.position, 26, 0.9);
+      this.onBite?.(f);
+    };
     for (const s of this.schools) this.scene.add(s.mesh);
 
     this.controls = new CameraControls(this.renderer.domElement, this.rig, { worldPerPixel: (zoom) => this.worldPerPixel(zoom) });
@@ -186,6 +202,30 @@ export class Aquarium {
     });
   }
 
+  /**
+   * CONTEXT: Hug (ADR 0008). A swipe from `a` to `b` (pixels); `from` is an earlier point on the swipe that gives the line its
+   * direction. Every creature the swipe crosses is cut in two along that line: it leaves the water and its two pieces take its place.
+   * Returns the creatures that were cut.
+   */
+  slash(a: P2, b: P2, from: P2 = a): Creature[] {
+    const viewport = this.viewport;
+    const hit = this.creatures.crossed(a, b, viewport);
+    if (hit.length === 0) return [];
+    const line = from[0] === b[0] && from[1] === b[1] ? a : from;
+    const plane = cutPlane(this.camera, line, b, viewport) ?? cutPlane(this.camera, a, [b[0] + 1, b[1] + 1], viewport);
+    if (!plane) return [];
+    for (const c of hit) {
+      this.bursts.emit(c.group.position, 22, c.template.size * 0.3);
+      this.fragments.add(...this.creatures.cut(c, plane));
+    }
+    return hit;
+  }
+
+  /** What the cleanup sharks have to steer around. */
+  private livingForSharks(): Living[] {
+    return this.creatures.living().map((c) => ({ position: c.group.position, radius: c.template.size * 0.5 }));
+  }
+
   /** A tap on the water: a creature under the finger hops or somersaults in a cloud of bubbles (CONTEXT: Glædeshop). */
   tapAt(ndcX: number, ndcY: number): Creature | null {
     const c = this.creatures.reactAt(ndcX, ndcY);
@@ -218,6 +258,8 @@ export class Aquarium {
     for (const s of this.schools) s.update(dt);
     this.creatures.update(dt);
     this.rig.update(dt);
+    this.fragments.update(dt);
+    this.sharks.update(dt, this.fragments, this.livingForSharks(), this.rig.x, this.rig.viewHalfWidth * 1.3);
     this.rays.update(this.elapsed);
     this.particles.update(dt, this.elapsed);
     this.placeCamera();

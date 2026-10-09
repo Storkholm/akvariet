@@ -9,6 +9,7 @@ import { AudioEngine } from './audio/AudioEngine';
 import { AdultMode } from './ui/AdultMode';
 import { DrawingPanel } from './ui/DrawingPanel';
 import { FullscreenButton } from './ui/FullscreenButton';
+import { SamuraiMode } from './samurai/SamuraiMode';
 import { SoundButton } from './ui/SoundButton';
 import { SpeciesCarousel } from './ui/SpeciesCarousel';
 import { ViewToggle } from './ui/ViewToggle';
@@ -20,6 +21,7 @@ const PANEL_CLOSES_AT = 1.9;
 export class App {
   readonly picker: SpeciesCarousel;
   readonly viewToggle = new ViewToggle();
+  readonly samurai: SamuraiMode;
   readonly panel = new DrawingPanel();
   readonly adult: AdultMode;
   readonly audio = new AudioEngine();
@@ -35,13 +37,14 @@ export class App {
   constructor(root: HTMLElement, private readonly aquarium: Aquarium, slots: readonly Species[] = SPECIES) {
     this.picker = new SpeciesCarousel(aquarium.pickerBubbles, slots);
     this.adult = new AdultMode();
+    this.samurai = new SamuraiMode(aquarium.renderer.domElement);
     this.soundButton = new SoundButton(this.audio);
     const ui = document.createElement('div');
     ui.className = 'ui';
     const corner = document.createElement('div');
     corner.className = 'top-right';
     corner.append(this.fullscreenButton.element, this.soundButton.element);
-    ui.append(this.picker.element, this.panel.element, this.adult.element, this.viewToggle.element, corner);
+    ui.append(this.picker.element, this.panel.element, this.adult.element, this.samurai.element, this.viewToggle.element, corner);
     document.documentElement.dataset.view = 'aquarium';
     // Browsers only allow sound after a first tap: any tap or key press wakes the sound up.
     for (const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, () => this.audio.unlock(), { capture: true });
@@ -53,6 +56,7 @@ export class App {
       this.picker.hide(index); // the tapped bubble pops, the others fade away
       this.audio.pop();
       this.adult.setAvailable(false);
+      this.samurai.setAvailable(false);
       this.viewToggle.setAvailable(false);
       // While drawing (and while the creature is released) the camera stays exactly where it is (ADR 0006).
       this.aquarium.follow(null);
@@ -74,7 +78,43 @@ export class App {
       if (on) this.picker.hide();
       else this.picker.show();
       this.viewToggle.setAvailable(!on);
+      this.samurai.setAvailable(!on); // the sword and the lock never are on at the same time
     };
+
+    // Samurai mode (ADR 0008): the carousel folds away, a swipe is a sword cut, and cleanup sharks eat the pieces.
+    let foldedBefore = false;
+    this.samurai.onChange = (on) => {
+      this.aquarium.controls.dragEnabled = !on; // one finger cuts; a pinch still zooms
+      if (on) {
+        foldedBefore = this.viewToggle.folded;
+        this.aquarium.follow(null);
+        this.picker.setFolded(true);
+        this.viewToggle.setAvailable(false);
+        this.adult.setAvailable(false);
+        this.audio.gong();
+        for (const name of ['kiai', 'haj']) void this.audio.loadSamples(name, import.meta.env.BASE_URL);
+      } else {
+        this.picker.setFolded(foldedBefore);
+        this.viewToggle.setAvailable(true);
+        this.adult.setAvailable(true);
+        // Pieces still lying about when the mode ends: the sharks come for them (even after fewer than three cuts).
+        if (this.samurai.session.sharksDueAtEnd(this.aquarium.sharks.active, this.aquarium.fragments.count)) this.summonSharks();
+      }
+    };
+    this.samurai.onSlash = (a, b, from) => {
+      const cut = this.aquarium.slash(a, b, from);
+      if (cut.length === 0) return 0;
+      this.audio.slash();
+      // The cut creatures are gone for good, also from the saved ones (their pieces are never saved).
+      for (const c of cut) void this.keeper.delete(c.id);
+      return cut.length;
+    };
+    // (SamuraiMode counts the cut creatures; when three have been cut, the sharks are due.)
+    this.samurai.onCounted = () => {
+      if (this.samurai.session.sharksDue(this.aquarium.sharks.active)) this.summonSharks();
+    };
+    this.aquarium.onBite = () => this.audio.nam();
+    this.aquarium.sharks.onGone = () => this.samurai.session.sharksGone();
     this.adult.onPick = (x, y) => this.aquarium.creatures.pick(x, y);
     this.adult.onDelete = (creature) => {
       this.aquarium.creatures.remove(creature);
@@ -94,13 +134,13 @@ export class App {
     // so the creature the first tap hit is remembered.
     let lastHit: Creature | null = null;
     aquarium.controls.onTap = (x, y) => {
-      if (this.panel.isOpen || this.releasing) return;
+      if (this.panel.isOpen || this.releasing || this.samurai.active) return;
       const [nx, ny] = ndc(x, y);
       if (this.adult.active) this.adult.tap(nx, ny);
       else lastHit = this.aquarium.tapAt(nx, ny) ?? this.aquarium.creatures.creatureAt(nx, ny);
     };
     aquarium.controls.onDoubleTap = (x, y) => {
-      if (this.panel.isOpen || this.releasing || this.adult.active) return;
+      if (this.panel.isOpen || this.releasing || this.adult.active || this.samurai.active) return;
       const [nx, ny] = ndc(x, y);
       // A creature under the finger: the camera follows it. Empty water: it stops following.
       this.aquarium.follow(this.aquarium.creatures.creatureAt(nx, ny) ?? lastHit);
@@ -149,6 +189,11 @@ export class App {
     });
   }
 
+  /** The cleanup sharks swim in from the sides of what the child sees. */
+  private summonSharks(): void {
+    this.aquarium.sharks.summon(this.aquarium.rig.x, this.aquarium.rig.viewHalfWidth * 1.3);
+  }
+
   private backToPicker(): void {
     document.documentElement.dataset.view = 'aquarium';
     this.panel.close();
@@ -156,6 +201,7 @@ export class App {
     this.picker.show();
     this.adult.setAvailable(true);
     this.viewToggle.setAvailable(!this.adult.active);
+    this.samurai.setAvailable(!this.adult.active);
     this.aquarium.rig.frozen = false;
     this.aquarium.rig.touch();
   }

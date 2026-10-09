@@ -36,6 +36,8 @@ export class Creature {
   private appear: { delay: number; t: number } | null = null;
 
   private texture: THREE.CanvasTexture;
+  /** False once the texture has been handed on to the pieces of a cut creature (they dispose it). */
+  private ownsTexture = true;
   /** The drawing at the size it was made (when larger than the kept 512×512): used while the camera follows this creature. */
   private fullSource: HTMLCanvasElement | null;
   private fullTexture: THREE.CanvasTexture | null = null;
@@ -92,6 +94,24 @@ export class Creature {
       this.fullTexture.dispose();
       this.fullTexture = null;
     }
+  }
+
+  /**
+   * CONTEXT: Hug – hands the body over to the two pieces: the texture now belongs to them. The creature itself is
+   * then removed (and deleted from the store) by the caller. Returns what the pieces need to look exactly like it.
+   */
+  takeBodyForCut(): { texture: THREE.CanvasTexture; geometry: THREE.BufferGeometry; template: Template; phase: number; flap: number; turn: number } {
+    this.ownsTexture = false;
+    const usingFull = !!this.fullTexture && this.material.map === this.fullTexture;
+    if (usingFull) this.texture.dispose(); // the pieces carry the full-size one
+    return {
+      texture: usingFull && this.fullTexture ? this.fullTexture : this.texture,
+      geometry: this.mesh.geometry,
+      template: this.template,
+      phase: this.uniforms.uPhase.value,
+      flap: this.uniforms.uFlap.value,
+      turn: this.uniforms.uTurn.value,
+    };
   }
 
   /** Width in px of the texture the body is drawn with right now (for tests). */
@@ -216,8 +236,10 @@ export class Creature {
   }
 
   dispose(): void {
-    this.texture.dispose();
-    this.fullTexture?.dispose();
+    if (this.ownsTexture) {
+      this.texture.dispose();
+      this.fullTexture?.dispose();
+    }
     this.material.dispose();
   }
 }

@@ -48,12 +48,14 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Dyrelager** | `CreatureStore` | Stedet på enheden (IndexedDB) hvor dyrene gemmes mellem besøg. Kun det barnet har tegnet gemmes: art, tegning (v2: 1024×1024 PNG), navn og oprettelsestidspunkt. ADR 0009. |
 | **Afsked** | `farewell()` | Når akvariet er fuldt og et nyt dyr kommer ind, svømmer det ældste dyr ud af billedet og slettes. |
 | **Lyd** | `AudioEngine` | Alle lyde, lavet med Web Audio i koden (ingen lydfiler): en blød tone pr. farveblyant (14 toner i en pentatonisk skala fra A3) og en tone pr. tal i nedtællingen, svup ved Slip løs, pop ved boblen, bobler ved glædeshop, bloop ved sletning og en svag underlig brummen i vandet. Starter først efter første tryk; lydknappen (højttaler, øverst til højre) slår det fra, og valget huskes. |
-| **Voksentilstand** | `AdultMode` | Skjult tilstand (hold låse-ikonet nede i 3 sek.), hvor man kan slette enkelte dyr og få hjælp til fuldskærm. |
+| **Voksentilstand** | `AdultMode` | Skjult tilstand (hold låse-ikonet nede i 3 sek.), hvor man kan slette enkelte dyr og få hjælp til fuldskærm. Er aldrig tændt samtidig med samurai-mode. |
 | **Samurai-mode** | `SamuraiMode` | Tilstand (hold sværd-knappen i 2 sek.), hvor swipe er sværdhug. ADR 0008. |
 | **Hug** | `slash()` | Ét sværdhug: et lysende spor; dyr det krydser, deles i to stykker og slettes. |
 | **Stykke** | `Fragment` | En halvdel af et hugget dyr. Synker til bunds; gemmes aldrig. |
 | **Rensehajer** | `CleanupSharks` | Grå baggrundshajer, der kommer efter 3 hug og spiser stykkerne. Rører aldrig levende dyr. Ikke det samme som arten **haj**. |
-| **Brøl** | `Kiai` | Familiens indtalte samurai-brøl (lydfiler, ADR 0007). |
+| **Brøl** | `Kiai` | Familiens indtalte samurai-brøl (lydfiler `kiai-1…4.mp3`, ADR 0007). |
+| **Nam** | `nam()` | Lyden, når en rensehaj bider et stykke: familiens optagelser (`haj-1…4.mp3`, ADR 0010), ellers en lille lyd lavet i kode. |
+| **Sværdspor** | `.slash-trail` | Det lysende hvide spor, et swipe tegner i samurai-mode; falmer på 0,3 sek. |
 
 ## Undgå
 
