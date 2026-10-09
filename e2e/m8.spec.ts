@@ -358,7 +358,9 @@ test.describe('M8: karrusellen', () => {
     const end = await scrollX(page);
     const last = (await areas(page))[7];
     expect(last.x + last.r).toBeLessThanOrEqual(TABLET.width);
-    expect(end).toBeGreaterThan(x1);
+    // (On a fast machine the first swipe may already have flung it to the end, so "at least as far", and flush with the screen edge.)
+    expect(end).toBeGreaterThanOrEqual(x1 - 0.01);
+    expect(last.x + last.r).toBeCloseTo(TABLET.width, 0);
     await page.screenshot({ path: 'docs/screenshots/M8-tablet-2-karrusel-swipet.png' });
     for (let i = 0; i < 3; i++) await touchDrag(cdp, line([100, y], [1100, y], 6));
     await adv(page, 2);
