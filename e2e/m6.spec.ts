@@ -48,7 +48,9 @@ for (const [name, size] of [['tablet', TABLET], ['phone', PHONE]] as const) {
     expect(target, 'a creature is in view').not.toBeNull();
     const t = target as { id: string; x: number; y: number };
 
-    await tap(cdp, [t.x, t.y]);
+    // A mouse click: press and release arrive back to back. (A CDP touch tap can be held for most of a second on a slow CI
+    // machine, and then it is rightly not a tap any more.)
+    await page.mouse.click(t.x, t.y);
     const readState = () => page.evaluate((id) => {
       const w = window as unknown as W;
       const c = w.aquarium.creatures.creatures.find((k) => k.id === id);
