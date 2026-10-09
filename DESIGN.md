@@ -135,6 +135,8 @@ Hver milepæl skal ende med noget der kan spilles i browseren, være committet o
 | **M12** | Bunddyr (8.5): søstjerne (også på ruden), søpindsvin, søpølse | Bunddyrene kravler på sandet; søstjerner kravler af og til op på ruden |
 | **M13** | Samurai-mode (8.7): sværd, hug, stykker, rensehajer, brøl | Tre hug kalder rensehajerne, som spiser stykkerne og aldrig levende dyr |
 
+**Model pr. milepæl (v2):** Sonnet 5.5 med effort *high* til det hele. To milepæle har en kendt risiko, hvor Opus 5.5 kan være nødvendig: **M11** (kroppen pustes op til siderne og tegningen spejles) og **M13** (snittet med klippeplaner). Sessionen skriver selv `ANBEFALER OPUS:` i sin opsummering, hvis den kører fast (se CLAUDE.md).
+
 ## 6. Uden for v2 (bevidst fravalgt)
 
 Fælles akvarie på tværs af enheder · fodring · musik · konti/login · deling af tegninger · app-butikker · flere hug i samme dyr · to forskellige sider på fisk · bunddyr der kravler op ad koraller.

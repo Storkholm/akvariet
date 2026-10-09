@@ -14,6 +14,9 @@
 - UI-tekst på dansk; kode og kommentarer på engelsk.
 - Er noget i DESIGN.md uklart eller umuligt, så vælg den enkleste løsning der holder designprincipperne (afsnit 2), skriv valget under "Åbne spørgsmål" i DESIGN.md, og fortsæt.
 
+## Når du kører fast
+Hvis et visuelt krav fra DESIGN.md (form, snit, bevægelse) stadig ikke er opfyldt efter **3 seriøse forsøg**, så stop med at prøve. Commit det der virker, og afslut din opsummering med en linje, der starter med **`ANBEFALER OPUS:`**, efterfulgt af hvad der ikke lykkes, og hvad du har prøvet. Martin starter så en ny session med Opus til netop den del. Det gælder især M11 (fisk fra siden) og M13 (snittet i samurai-mode).
+
 ## Kommandoer
 - `npm run dev` – dev-server (Vite)
 - `npm test` – Vitest (logik)
