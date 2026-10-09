@@ -611,8 +611,12 @@ test.describe('M8: ydeevne og indhold', () => {
     await expect(page.locator('.adult-frame')).toBeVisible();
     await touchDrag(cdp, line([p.x, p.y], [p.x - 300, p.y], 10));
     await expect(page.locator('.adult-confirm')).toBeHidden();
-    await adv(page, 1);
-    const q = (await creatureScreenPoint(page, id)) as { x: number; y: number };
+    // The swipe moved the camera (and the creature has swum on): bring the camera home and put a fresh creature in the middle.
+    await page.evaluate(() => (window as unknown as W).aquarium.rig.reset());
+    const id2 = await spawnAt(page, [0, 6, 0]);
+    await adv(page, 0.2);
+    const q = (await creatureScreenPoint(page, id2)) as { x: number; y: number };
+    expect(q, 'a creature is in view').not.toBeNull();
     await tap(cdp, [q.x, q.y]);
     await expect(page.locator('.adult-confirm')).toBeVisible();
     expect(errors).toEqual([]);
