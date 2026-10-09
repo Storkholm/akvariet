@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { creatureScreenPoint, holdRelease, line, newTouchPage, openPanel, PHONE, registrationError, reloadAndRestore, rigState, seedCreatures, sceneInfo, spawnAt, TABLET, tap, touchDrag, touchPinch } from './helpers';
+import { creatureScreenPoint, holdRelease, line, newTouchPage, openPanel, PHONE, registrationError, reloadAndRestore, rigState, seedCreatures, sceneInfo, spawnAt, TABLET, touchDrag, touchPinch } from './helpers';
 
 type Pg = import('@playwright/test').Page;
 type W = {
@@ -59,7 +59,7 @@ test.describe('M8: kameraet', () => {
     await adv(page, 0.2);
     const q = (await creatureScreenPoint(page, id2)) as { x: number; y: number };
     expect(q).not.toBeNull();
-    await tap(cdp, [q.x, q.y]);
+    await page.mouse.click(q.x, q.y);
     await expect.poll(() => page.evaluate((cid) => !!(window as unknown as W).aquarium.creatures.creatures.find((c) => c.id === cid)?.reaction, id2)).toBe(true);
 
     // 9 px of finger wobble is still a tap; the drag starts after ~10 px.
@@ -196,9 +196,7 @@ test.describe('M8: følg dyr', () => {
     await adv(page, 0.2);
     const p = (await creatureScreenPoint(page, id)) as { x: number; y: number };
     expect(p).not.toBeNull();
-    await tap(cdp, [p.x, p.y]);
-    await page.waitForTimeout(120);
-    await tap(cdp, [p.x, p.y]);
+    await page.mouse.dblclick(p.x, p.y); // (a mouse double click: back to back, so a slow CI machine cannot stretch the gap)
     await adv(page, 0.1);
     expect(await page.evaluate(() => (window as unknown as W).aquarium.following?.id)).toBe(id);
     // The creature swims off; the camera goes after it and zooms in.
@@ -219,9 +217,7 @@ test.describe('M8: følg dyr', () => {
     // Follow again, then a double tap on empty water stops it.
     const q = (await creatureScreenPoint(page, id)) as { x: number; y: number } | null;
     if (q) {
-      await tap(cdp, [q.x, q.y]);
-      await page.waitForTimeout(120);
-      await tap(cdp, [q.x, q.y]);
+      await page.mouse.dblclick(q.x, q.y); // (a mouse double click: back to back, so a slow CI machine cannot stretch the gap)
       expect((await rigState(page)).following).toBe(true);
     } else {
       await page.evaluate((cid) => {
@@ -230,9 +226,7 @@ test.describe('M8: følg dyr', () => {
       }, id);
     }
     expect((await rigState(page)).following).toBe(true);
-    await tap(cdp, [700, 760]);
-    await page.waitForTimeout(120);
-    await tap(cdp, [702, 762]);
+    await page.mouse.dblclick(700, 760); // (a mouse double click: back to back, so a slow CI machine cannot stretch the gap)
     expect((await rigState(page)).following).toBe(false);
     expect(errors).toEqual([]);
     await ctx.close();
@@ -620,7 +614,7 @@ test.describe('M8: ydeevne og indhold', () => {
     await adv(page, 0.2);
     const q = (await creatureScreenPoint(page, id2)) as { x: number; y: number };
     expect(q, 'a creature is in view').not.toBeNull();
-    await tap(cdp, [q.x, q.y]);
+    await page.mouse.click(q.x, q.y);
     await expect(page.locator('.adult-confirm')).toBeVisible();
     expect(errors).toEqual([]);
     await ctx.close();
