@@ -25,7 +25,14 @@
 /* ---------- species picker: invisible round buttons over the 3D bubbles ---------- */
 .picker {
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  /* top/height are set from the carousel geometry; the band catches swipes, the rest of the screen belongs to the camera */
+  pointer-events: auto;
+  touch-action: none;
+}
+.picker.inert,
+.picker.inert .bubble-hit {
   pointer-events: none;
 }
 .bubble-hit {
@@ -659,4 +666,26 @@
 }
 .adult-help p {
   margin: 0 0 4px;
+}
+
+/* ---------- kigge-knap / tegne-knap (DESIGN 8.3): bottom right, always in the same place ---------- */
+.view-toggle {
+  position: absolute;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  z-index: 6;
+  width: 64px;
+  height: 64px;
+  padding: 14px;
+  border: 3px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  background: linear-gradient(#52b8ff, #1f7fe0);
+  color: #1b3a66;
+  box-shadow: 0 4px 12px rgba(0, 50, 120, 0.4);
+}
+.view-toggle[data-mode='draw'] {
+  background: linear-gradient(#ffd86b, #f5a623);
+}
+.view-toggle:active {
+  filter: brightness(1.12);
 }

@@ -27,10 +27,17 @@ for (const [name, size] of SIZES) {
     const areas = await page.evaluate(() => (window as unknown as W).aquarium.pickerBubbles.hitAreas());
     expect(areas.map((a) => a.species).sort()).toEqual(['ray', 'turtle']);
 
+    // DESIGN 8.3: ~3 bubbles fit on a tablet (so both are whole); on an upright phone it is 1½, so the second one peeks in.
+    const upright = size.height > size.width * 1.05;
     for (const a of areas) {
       // Whole bubble on screen, big enough to tap easily.
-      expect(a.x - a.r, `${a.species} left`).toBeGreaterThanOrEqual(0);
-      expect(a.x + a.r, `${a.species} right`).toBeLessThanOrEqual(size.width);
+      if (!upright || a.species === areas[0].species) {
+        expect(a.x - a.r, `${a.species} left`).toBeGreaterThanOrEqual(0);
+        expect(a.x + a.r, `${a.species} right`).toBeLessThanOrEqual(size.width);
+      } else {
+        expect(a.x - a.r, `${a.species} peeks in`).toBeLessThan(size.width);
+        expect(a.x, `${a.species} is partly beyond the edge`).toBeGreaterThan(size.width * 0.8);
+      }
       expect(a.y - a.r, `${a.species} top`).toBeGreaterThanOrEqual(0);
       expect(a.y + a.r, `${a.species} bottom`).toBeLessThanOrEqual(size.height);
       expect(2 * a.r).toBeGreaterThanOrEqual(120);
@@ -252,7 +259,7 @@ test('M5: both species swim together, are saved, and come back as the right spec
 });
 
 for (const [name, size] of [['tablet', TABLET], ['phone', PHONE]] as const) {
-  test(`M5: rays and turtles together stay in view and keep apart (${name})`, async ({ browser }) => {
+  test(`M5: rays and turtles together stay in the aquarium and keep apart (${name})`, async ({ browser }) => {
     const { ctx, page, errors } = await newTouchPage(browser, size);
     await page.goto('/?still');
     await page.evaluate(() => {
@@ -279,13 +286,11 @@ for (const [name, size] of [['tablet', TABLET], ['phone', PHONE]] as const) {
           };
         }).aquarium;
         w.advance(3);
-        w.camera.updateMatrixWorld();
-        const V = new w.camera.position.constructor();
         let inside = 0;
         const cs = w.creatures.creatures;
         for (const c of cs) {
-          const v = V.set(c.group.position.x, c.group.position.y, c.group.position.z).project(w.camera);
-          if (Math.abs(v.x) < 1 && Math.abs(v.y) < 1 && v.z < 1) inside++;
+          const p = c.group.position;
+          if (Math.abs(p.x) <= 37.5 && p.y > 0 && p.y < 11 && p.z > -12 && p.z < 8) inside++;
         }
         let min = Infinity;
         for (let a = 0; a < cs.length; a++) for (let b = a + 1; b < cs.length; b++) {
@@ -298,9 +303,9 @@ for (const [name, size] of [['tablet', TABLET], ['phone', PHONE]] as const) {
       total += r[1];
       if (i > 3) closest = Math.min(closest, r[2]);
     }
-    expect(inView / total).toBeGreaterThan(0.9);
-    // 12 creatures in the narrow portrait box are a tight squeeze; the swimmer test covers the roomy case.
-    expect(closest).toBeGreaterThan(name === 'phone' ? 0.5 : 0.8);
+    expect(inView / total).toBe(1);
+    // ADR 0006: the whole 75-unit width is swimming room now, on a phone as well as on a tablet.
+    expect(closest).toBeGreaterThan(0.8);
     expect(errors).toEqual([]);
     await ctx.close();
   });

@@ -1,17 +1,18 @@
 import * as THREE from 'three';
 import { clampPixelRatio } from '../util/render';
 import { CreatureManager } from '../creature/CreatureManager';
-import { SPECIES } from '../species';
-import { fitCamera, swimHalfWidth } from './cameraRig';
+import { SPECIES, type Species } from '../species';
+import { CameraRig, fitCamera, FOLLOW_ZOOM, type CameraFit } from './cameraRig';
+import { CameraControls } from './CameraControls';
+import { WORLD_HALF_WIDTH } from './terrain';
 
-const fitFov = (aspect: number): number => fitCamera(aspect).fov;
 import type { Creature } from '../creature/Creature';
 import { BubbleBursts, LightRays, Particles } from './effects';
 import { FishSchool, SCHOOLS } from './fishSchool';
 import { PixelRatioGovernor } from './governor';
 import { timeUniform } from './materials';
 import { PickerBubbles } from './PickerBubbles';
-import { buildReef } from './reef';
+import { buildReef, type Reef } from './reef';
 
 /** Fog colour; roughly the water colour at the horizon of the background gradient. */
 export const FOG_COLOR = 0x1b88cc;
@@ -50,16 +51,24 @@ export class Aquarium {
   private lookY = 3.4;
   private camHeight = 4.4;
   private camDistance = 24;
+  private fit: CameraFit = fitCamera(1.4);
+  private appliedZoom = 1;
+  /** CONTEXT: Kamera – the pose the child can move (ADR 0006). */
+  readonly rig = new CameraRig(WORLD_HALF_WIDTH);
+  readonly controls: CameraControls;
+  private followed: Creature | null = null;
   private readonly rays = new LightRays();
   private readonly particles = new Particles();
   private readonly schools: FishSchool[] = SCHOOLS.map((s) => new FishSchool(s));
   readonly creatures: CreatureManager;
   readonly pickerBubbles: PickerBubbles;
   readonly bursts = new BubbleBursts();
+  private readonly reef: Reef;
   /** A creature was tapped and is now hopping (App plays the sound). */
   onReact?: (creature: Creature) => void;
 
-  constructor(private readonly host: HTMLElement) {
+  /** `slots`: which bubbles the carousel holds (default: every species; the e2e tests repeat them to get a long row). */
+  constructor(private readonly host: HTMLElement, options: { slots?: readonly Species[] } = {}) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.domElement.classList.add('aquarium-canvas');
     host.appendChild(this.renderer.domElement);
@@ -73,13 +82,15 @@ export class Aquarium {
     this.scene.add(sun);
 
     this.creatures = new CreatureManager(this.scene, this.camera, this.renderer.capabilities.getMaxAnisotropy());
-    const reef = buildReef();
+    this.reef = buildReef();
+    const reef = this.reef;
     this.scene.add(reef.sand, reef.group, this.rays.group, this.particles.group);
     this.creatures.warmUp(this.renderer);
-    this.pickerBubbles = new PickerBubbles(this.camera, (sp) => this.creatures.display(sp), SPECIES);
+    this.pickerBubbles = new PickerBubbles(this.camera, (sp) => this.creatures.display(sp), options.slots ?? SPECIES);
     this.scene.add(this.pickerBubbles.group, this.bursts.points);
     for (const s of this.schools) this.scene.add(s.mesh);
 
+    this.controls = new CameraControls(this.renderer.domElement, this.rig, { worldPerPixel: (zoom) => this.worldPerPixel(zoom) });
     this.resize();
     window.addEventListener('resize', this.resize);
   }
@@ -89,14 +100,16 @@ export class Aquarium {
     const h = Math.max(1, this.host.clientHeight);
     this.renderer.setPixelRatio(clampPixelRatio(window.devicePixelRatio, this.dimmed ? 1 : this.maxRatio));
     this.renderer.setSize(w, h, false);
-    this.bursts.setPixelScale((h * this.renderer.getPixelRatio()) / (2 * Math.tan((fitFov(w / h) * Math.PI) / 360)));
     const fit = fitCamera(w / h);
+    this.fit = fit;
     this.camera.aspect = w / h;
     this.camera.fov = fit.fov;
-    this.camera.updateProjectionMatrix();
-    const half = swimHalfWidth(w / h, fit);
-    this.creatures.bounds.min[0] = -half;
-    this.creatures.bounds.max[0] = half;
+    this.applyZoom(this.rig.zoom);
+    this.rig.configure(fit, w / h);
+    // Creatures swim in the whole aquarium, not just the part on screen (ADR 0006).
+    const margin = 1.5;
+    this.creatures.bounds.min[0] = -(WORLD_HALF_WIDTH - margin);
+    this.creatures.bounds.max[0] = WORLD_HALF_WIDTH - margin;
     this.camDistance = fit.distance;
     this.camHeight = fit.height;
     this.lookY = fit.lookY;
@@ -115,11 +128,45 @@ export class Aquarium {
     this.paused = on;
   }
 
+  /** Applies a zoom to the lens (and to what depends on the lens: the pixel size of bubbles). */
+  private applyZoom(zoom: number): void {
+    this.appliedZoom = zoom;
+    this.camera.zoom = zoom;
+    this.camera.updateProjectionMatrix();
+    const h = Math.max(1, this.host.clientHeight);
+    this.bursts.setPixelScale((h * this.renderer.getPixelRatio() * zoom) / (2 * Math.tan((this.fit.fov * Math.PI) / 360)));
+  }
+
+  /** World units per screen pixel at the middle of the aquarium (for turning a swipe into a camera move). */
+  worldPerPixel(zoom = this.rig.zoom): number {
+    return (2 * this.camDistance * Math.tan((this.fit.fov * Math.PI) / 360)) / zoom / Math.max(1, this.host.clientHeight);
+  }
+
   private placeCamera(): void {
-    // Slow drift; no camera control for the child in v1 (DESIGN 3.4).
+    // The child moves the camera (CameraRig); on top of that a very slow drift keeps the picture alive.
+    if (Math.abs(this.rig.zoom - this.appliedZoom) > 1e-4) this.applyZoom(this.rig.zoom);
     const t = this.elapsed;
-    this.camera.position.set(Math.sin(t * 0.05) * 1.8, this.camHeight + Math.sin(t * 0.07) * 0.25, this.camDistance);
-    this.camera.lookAt(Math.sin(t * 0.05) * 0.6, this.lookY, 0);
+    this.camera.position.set(this.rig.x + Math.sin(t * 0.05) * 0.9, this.camHeight + this.rig.y + Math.sin(t * 0.07) * 0.2, this.camDistance);
+    this.camera.lookAt(this.rig.x + Math.sin(t * 0.05) * 0.3, this.lookY + this.rig.y, 0);
+  }
+
+  /** CONTEXT: Følg – the camera follows this creature (double tap), or stops following with null. */
+  follow(creature: Creature | null): void {
+    if (this.followed && this.followed !== creature) this.followed.setFullDetail(false);
+    this.followed = creature;
+    creature?.setFullDetail(true);
+    if (!creature) {
+      this.rig.stopFollow();
+      return;
+    }
+    const size = creature.template.size;
+    // A creature fills about the same part of the picture whatever its size: bigger ones are met from further away.
+    const zoom = Math.min(2.5, Math.max(1.4, FOLLOW_ZOOM * (4.2 / size) ** 0.5));
+    this.rig.follow(() => ({ x: creature.group.position.x, y: creature.group.position.y }), zoom);
+  }
+
+  get following(): Creature | null {
+    return this.followed;
   }
 
   start(): void {
@@ -165,14 +212,21 @@ export class Aquarium {
 
   update(dt: number): void {
     this.elapsed += dt;
+    // A followed creature that is gone (deleted, saying goodbye) is let go; the rig itself lets go after two minutes.
+    if (this.followed && (this.followed.leaving || !this.creatures.creatures.includes(this.followed) || !this.rig.following)) this.follow(null);
     timeUniform.value = this.elapsed;
     for (const s of this.schools) s.update(dt);
     this.creatures.update(dt);
+    this.rig.update(dt);
     this.rays.update(this.elapsed);
     this.particles.update(dt, this.elapsed);
     this.placeCamera();
     this.pickerBubbles.update(dt, this.elapsed);
     this.bursts.update(dt, this.elapsed);
+    // ADR 0006: what is outside the picture is not drawn.
+    this.camera.updateMatrixWorld();
+    this.reef.cull(this.camera);
+    for (const s of this.schools) s.cull(this.camera);
   }
 
   /** The highest pixel ratio the game currently renders with (it only ever goes down on slow devices). */

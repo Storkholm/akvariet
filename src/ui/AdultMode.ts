@@ -40,7 +40,7 @@ export class AdultMode {
   private pending: Creature | null = null;
   private justActivated = false;
 
-  constructor(private readonly aquariumCanvas: HTMLElement) {
+  constructor() {
     const ring = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     ring.setAttribute('viewBox', '0 0 48 48');
     ring.classList.add('lock-ring');
@@ -78,7 +78,6 @@ export class AdultMode {
       this.closeDialog();
       if (c) this.onDelete?.(c);
     });
-    this.aquariumCanvas.addEventListener('pointerup', this.onCanvasTap);
   }
 
   /** The lock only shows where it makes sense (not while drawing or while a creature is being released). */
@@ -115,10 +114,10 @@ export class AdultMode {
     this.lock.classList.remove('holding');
   };
 
-  private readonly onCanvasTap = (e: PointerEvent): void => {
+  /** A tap on the aquarium at this point (normalised device coordinates); App passes only real taps, never swipes. */
+  tap(ndcX: number, ndcY: number): void {
     if (!this.active || this.pending) return;
-    const r = this.aquariumCanvas.getBoundingClientRect();
-    const creature = this.onPick?.(((e.clientX - r.left) / r.width) * 2 - 1, -(((e.clientY - r.top) / r.height) * 2 - 1));
+    const creature = this.onPick?.(ndcX, ndcY);
     if (!creature) return;
     this.pending = creature;
     const ctx = this.thumb.getContext('2d');

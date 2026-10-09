@@ -128,7 +128,7 @@ test('M3: unfold, turn and swim away; the picker comes back (tablet)', async ({ 
 });
 
 for (const [name, size] of [['tablet', TABLET], ['phone', PHONE]] as Array<[string, Size]>) {
-  test(`M3: several creatures swim around and stay in view (${name})`, async ({ browser }) => {
+  test(`M3: several creatures swim around and stay in the aquarium (${name})`, async ({ browser }) => {
     const { ctx, page, errors } = await newTouchPage(browser, size);
     await page.goto('/?still');
     await openPanel(page);
@@ -160,19 +160,18 @@ for (const [name, size] of [['tablet', TABLET], ['phone', PHONE]] as Array<[stri
       const frac = await page.evaluate(() => {
         const w = window as unknown as W2;
         w.aquarium.advance(3);
-        w.aquarium.camera.updateMatrixWorld();
-        const V = new (w.aquarium.camera.position.constructor as new () => V3)();
+        // ADR 0006: the aquarium is ~3 screens wide, so "in the aquarium" means inside its walls, not inside the picture.
         let inside = 0;
         for (const c of w.aquarium.creatures.creatures) {
-          V.set(c.group.position.x, c.group.position.y, c.group.position.z).project(w.aquarium.camera);
-          if (Math.abs(V.x) < 1 && Math.abs(V.y) < 1 && V.z < 1) inside++;
+          const p = c.group.position;
+          if (Math.abs(p.x) <= 37.5 && p.y > 0 && p.y < 11 && p.z > -12 && p.z < 8) inside++;
         }
         return [inside, w.aquarium.creatures.creatures.length];
       });
       inView += frac[0];
       total += frac[1];
     }
-    expect(inView / total).toBeGreaterThan(0.9);
+    expect(inView / total).toBe(1);
     await page.screenshot({ path: `docs/screenshots/M3-${name}-7-flere-dyr.png` });
     expect(errors).toEqual([]);
     await ctx.close();

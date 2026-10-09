@@ -113,7 +113,8 @@ export class CreatureManager {
   /** Makes room for `incoming` new creatures: the oldest ones swim away (CONTEXT: Afsked). Returns who is leaving. */
   makeRoom(incoming = 1, max = MAX_CREATURES): Creature[] {
     const leaving = planFarewells(this.living(), incoming, max);
-    for (const c of leaving) c.beginFarewell();
+    // With a wide aquarium the nearest edge is the nearest edge of the *picture*, not of the aquarium.
+    for (const c of leaving) c.beginFarewell(c.group.position.x >= this.camera.position.x ? 1 : -1);
     return leaving;
   }
 
@@ -133,8 +134,13 @@ export class CreatureManager {
    * height, so 0.07 ≈ 30 px on a phone) is taken when the ray itself hits nothing.
    */
   reactAt(ndcX: number, ndcY: number, slack = 0.07): Creature | null {
-    const c = this.pick(ndcX, ndcY) ?? this.nearest(ndcX, ndcY, slack);
+    const c = this.creatureAt(ndcX, ndcY, slack);
     return c && c.react() ? c : null;
+  }
+
+  /** The creature at a screen point, a near miss included (CONTEXT: Følg uses this for the double tap). */
+  creatureAt(ndcX: number, ndcY: number, slack = 0.07): Creature | null {
+    return this.pick(ndcX, ndcY) ?? this.nearest(ndcX, ndcY, slack);
   }
 
   private nearest(ndcX: number, ndcY: number, slack: number): Creature | null {

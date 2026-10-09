@@ -38,6 +38,12 @@ export const ICONS = {
   exitFullscreen: S(
     '<path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>',
   ),
+  eye: S(
+    '<path d="M1.8 12C4.6 7 8.2 4.8 12 4.8S19.4 7 22.2 12C19.4 17 15.8 19.2 12 19.2S4.6 17 1.8 12z" fill="#ffffff"/><circle cx="12" cy="12" r="4.6" fill="currentColor"/><circle cx="13.6" cy="10.4" r="1.5" fill="#ffffff"/>',
+  ),
+  pencil: S(
+    '<g transform="translate(12 12) rotate(45) scale(1.28) translate(-12 -12.2)"><path d="M9.2 2.8h5.6v13H9.2z" fill="#f9d21e" stroke="#7a5a10" stroke-width=".7" stroke-linejoin="round"/><path d="M9.2 15.8h5.6L12 21.4z" fill="#f3d6a6"/><path d="M10.8 19.2h2.4L12 21.4z" fill="currentColor"/><path d="M9.2 2.8h5.6v2.6H9.2z" fill="#f59ab4"/><path d="M9.2 5.4h5.6v1.2H9.2z" fill="#cfd6e4"/></g>',
+  ),
   trash: S(
     '<path d="M5 7h14M9.5 7V4.8h5V7M7 7l.8 12.2a1 1 0 0 0 1 .9h6.4a1 1 0 0 0 1-.9L17 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   ),

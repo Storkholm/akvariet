@@ -4,20 +4,22 @@ import type { Creature } from './creature/Creature';
 import { CreatureKeeper } from './creature/keeper';
 import { createCreatureStore } from './creature/store';
 import type { Drawing } from './drawing/Drawing';
-import type { Species } from './species';
+import { SPECIES, type Species } from './species';
 import { AudioEngine } from './audio/AudioEngine';
 import { AdultMode } from './ui/AdultMode';
 import { DrawingPanel } from './ui/DrawingPanel';
 import { FullscreenButton } from './ui/FullscreenButton';
 import { SoundButton } from './ui/SoundButton';
-import { SpeciesPicker } from './ui/SpeciesPicker';
+import { SpeciesCarousel } from './ui/SpeciesCarousel';
+import { ViewToggle } from './ui/ViewToggle';
 
 /** Seconds on the transition clock when the drawing layer is removed and the picker returns. */
 const PANEL_CLOSES_AT = 1.9;
 
 /** Wires the aquarium (always running) to the HTML layers on top of it (ADR 0003) and to the saved creatures (ADR 0002). */
 export class App {
-  readonly picker: SpeciesPicker;
+  readonly picker: SpeciesCarousel;
+  readonly viewToggle = new ViewToggle();
   readonly panel = new DrawingPanel();
   readonly adult: AdultMode;
   readonly audio = new AudioEngine();
@@ -30,26 +32,31 @@ export class App {
   readonly restored: Promise<void>;
   private releasing = false;
 
-  constructor(root: HTMLElement, private readonly aquarium: Aquarium) {
-    this.picker = new SpeciesPicker(aquarium.pickerBubbles);
-    this.adult = new AdultMode(aquarium.renderer.domElement);
+  constructor(root: HTMLElement, private readonly aquarium: Aquarium, slots: readonly Species[] = SPECIES) {
+    this.picker = new SpeciesCarousel(aquarium.pickerBubbles, slots);
+    this.adult = new AdultMode();
     this.soundButton = new SoundButton(this.audio);
     const ui = document.createElement('div');
     ui.className = 'ui';
     const corner = document.createElement('div');
     corner.className = 'top-right';
     corner.append(this.fullscreenButton.element, this.soundButton.element);
-    ui.append(this.picker.element, this.panel.element, this.adult.element, corner);
+    ui.append(this.picker.element, this.panel.element, this.adult.element, this.viewToggle.element, corner);
     document.documentElement.dataset.view = 'aquarium';
     // Browsers only allow sound after a first tap: any tap or key press wakes the sound up.
     for (const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, () => this.audio.unlock(), { capture: true });
     root.append(ui);
     this.adult.setAvailable(true);
 
-    this.picker.onPick = (species) => {
-      this.picker.hide(species); // the tapped bubble pops, the other one fades away
+    this.viewToggle.onChange = (folded) => this.picker.setFolded(folded);
+    this.picker.onPick = (species, index) => {
+      this.picker.hide(index); // the tapped bubble pops, the others fade away
       this.audio.pop();
       this.adult.setAvailable(false);
+      this.viewToggle.setAvailable(false);
+      // While drawing (and while the creature is released) the camera stays exactly where it is (ADR 0006).
+      this.aquarium.follow(null);
+      this.aquarium.rig.frozen = true;
       // Let the pop be seen before the drawing panel slides in over it.
       window.setTimeout(() => {
         this.aquarium.setDimmed(true);
@@ -63,7 +70,11 @@ export class App {
     this.panel.onCountdown = (n) => this.audio.countdown(n);
 
     // Adult mode: the picker steps aside, and tapping a creature offers to delete it.
-    this.adult.onChange = (on) => (on ? this.picker.hide() : this.picker.show());
+    this.adult.onChange = (on) => {
+      if (on) this.picker.hide();
+      else this.picker.show();
+      this.viewToggle.setAvailable(!on);
+    };
     this.adult.onPick = (x, y) => this.aquarium.creatures.pick(x, y);
     this.adult.onDelete = (creature) => {
       this.aquarium.creatures.remove(creature);
@@ -73,18 +84,28 @@ export class App {
 
     // A tap on a creature in the water: it hops or somersaults for joy (not in adult mode, not while drawing).
     this.aquarium.onReact = () => this.audio.react();
+    // Taps and double taps on the water. Swipes and pinches belong to the camera (CameraControls), so a swipe is never a tap.
     const canvas = aquarium.renderer.domElement;
-    let down: { x: number; y: number; t: number } | null = null;
-    canvas.addEventListener('pointerdown', (e) => (down = { x: e.clientX, y: e.clientY, t: performance.now() }));
-    canvas.addEventListener('pointerup', (e) => {
-      const d = down;
-      down = null;
-      // A real tap, not a swipe or a long press.
-      if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 14 || performance.now() - d.t > 700) return;
-      if (this.adult.active || this.panel.isOpen || this.releasing) return;
+    const ndc = (x: number, y: number): [number, number] => {
       const r = canvas.getBoundingClientRect();
-      this.aquarium.tapAt(((e.clientX - r.left) / r.width) * 2 - 1, -(((e.clientY - r.top) / r.height) * 2 - 1));
-    });
+      return [((x - r.left) / r.width) * 2 - 1, -(((y - r.top) / r.height) * 2 - 1)];
+    };
+    // The first tap of a double tap already made the creature hop, and it has moved by the time the second tap lands:
+    // so the creature the first tap hit is remembered.
+    let lastHit: Creature | null = null;
+    aquarium.controls.onTap = (x, y) => {
+      if (this.panel.isOpen || this.releasing) return;
+      const [nx, ny] = ndc(x, y);
+      if (this.adult.active) this.adult.tap(nx, ny);
+      else lastHit = this.aquarium.tapAt(nx, ny) ?? this.aquarium.creatures.creatureAt(nx, ny);
+    };
+    aquarium.controls.onDoubleTap = (x, y) => {
+      if (this.panel.isOpen || this.releasing || this.adult.active) return;
+      const [nx, ny] = ndc(x, y);
+      // A creature under the finger: the camera follows it. Empty water: it stops following.
+      this.aquarium.follow(this.aquarium.creatures.creatureAt(nx, ny) ?? lastHit);
+    };
+    aquarium.controls.onSwipe = () => this.aquarium.follow(null);
 
     this.restored = this.restore();
   }
@@ -134,5 +155,8 @@ export class App {
     this.aquarium.setDimmed(false);
     this.picker.show();
     this.adult.setAvailable(true);
+    this.viewToggle.setAvailable(!this.adult.active);
+    this.aquarium.rig.frozen = false;
+    this.aquarium.rig.touch();
   }
 }

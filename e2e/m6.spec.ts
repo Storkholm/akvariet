@@ -28,6 +28,13 @@ for (const [name, size] of [['tablet', TABLET], ['phone', PHONE]] as const) {
     await seededAquarium(page, 3);
     await page.evaluate(() => (window as unknown as { app: { picker: { hide(): void } } }).app.picker.hide());
 
+    // The aquarium is three screens wide (ADR 0006): slide the camera over to where the first creature swims.
+    await page.evaluate(() => {
+      const w = window as unknown as { aquarium: { advance(s: number): void; rig: { grab(): void; panBy(x: number, y: number): void }; creatures: { creatures: Array<{ group: { position: { x: number } } }> } } };
+      w.aquarium.rig.grab();
+      w.aquarium.rig.panBy(w.aquarium.creatures.creatures[0].group.position.x, 0);
+      w.aquarium.advance(3);
+    });
     // Find a creature that is fully in view and tap it.
     let target: { id: string; x: number; y: number } | null = null;
     for (let i = 0; i < 40 && !target; i++) {

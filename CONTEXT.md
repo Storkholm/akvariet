@@ -11,10 +11,10 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Bunddyr** | `Crawler` | Art der kravler på sandet i stedet for at svømme (søstjerne, søpindsvin, søpølse). |
 | **Ruden** | `Glass` | Akvariets usynlige forrude, som søstjerner af og til kravler op på. |
 | **Del** | `Part` | Et stykke af skabelonen, der bliver sin egen bevægelige del af kroppen (skildpadde: skjold, hoved, fire luffer; rokke: krop og hale). Alle dele deler samme tegning. |
-| **Artsvælger** | `SpeciesPicker` | Startvisningen hvor arterne svæver i bobler over akvariet; tryk på en boble for at begynde at tegne. Fra v2 en **karrusel**. |
+| **Artsvælger** | `SpeciesCarousel` | Startvisningen hvor arterne svæver i bobler over akvariet; tryk på en boble for at begynde at tegne. Fra v2 en **karrusel** (v1's `SpeciesPicker` er erstattet). |
 | **Karrusel** | `SpeciesCarousel` | Artsvælgerens vandrette række af bobler, man swiper i. |
 | **Kigge-knap / tegne-knap** | `ViewToggle` | Én knap: som øje folder den karrusellen væk, så man kan se akvariet; som blyant folder den den frem igen. |
-| **Kamera** | `CameraRig` | Det man ser akvariet igennem. Kan glide langs akvariet (én finger) og zoome (knib); glider tilbage efter 30 sek. ADR 0006. |
+| **Kamera** | `CameraRig` | Det man ser akvariet igennem. Kan glide langs akvariet (én finger) og zoome 1×–2,5× (knib); glider tilbage efter 30 sek. og kan aldrig forlade akvariet. ADR 0006. |
 | **Følg** | `follow()` | Dobbelttryk på et dyr: kameraet følger det, og navneskiltet vises. |
 | **Boble** | `PickerBubbles` | Den gennemsigtige kugle med et ufarvet dyr i (3D), som artsvælgeren består af. Tryk på den, så popper den, og tegnefladen kommer frem. |
 | **Tegnefladen** | `DrawingPanel` | Visningen hvor skabelonen ligger stort og kan farvelægges. Ligger oven på akvariet, som kører dæmpet bagved. |
@@ -39,7 +39,7 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Bug** | `Belly` | Kroppens underside: tegningen i en lysere, blegere udgave – aldrig tegnet direkte. |
 | **Akvariet** | `Aquarium` | 3D-scenen med bund, koraller, lys, baggrundsliv og alle dyrene. Kører altid. |
 | **Baggrundsliv** | `AmbientLife` | Simple fiskestimer og bevægelige planter der ikke er tegnet af barnet og ikke gemmes. |
-| **Rev** | `Reef` | Akvariets faste pynt på bunden: koraller, planter, sten og sand. Bygges i kode (seedet), ikke tegnet af barnet. |
+| **Rev** | `Reef` | Akvariets faste pynt på bunden: koraller, planter, sten og sand. Bygges i kode (seedet), ikke tegnet af barnet. Fra v2 bygget i **bidder** langs bredden, så kun det synlige tegnes (ADR 0006). |
 | **Fiskestime** | `FishSchool` | Én flok af baggrundslivet (boids) der tegnes med instancing. Akvariet har flere stimer med hver sin fiskeart. |
 | **Glædeshop** | `react()` | Det et dyr gør, når man trykker på det i akvariet: lille hop (60 %) eller salto (40 %) + bobler (`BubbleBursts`) + lyd. Et tryk lige ved siden af tæller også. |
 | **Svømmer** | `Swimmer` | Bevægelsestilstanden for ét dyr i akvariet: position, retning, fart og næste mål. Ren logik uden tegning; styrer uden om sand, overflade, vægge og andre dyr. |

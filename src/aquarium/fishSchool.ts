@@ -100,6 +100,7 @@ export function fishGeometry(length: number, heightRatio: number, pattern: Patte
 /** One school of background fish (CONTEXT: Baggrundsliv) drawn with a single instanced mesh. */
 export class FishSchool {
   readonly mesh: THREE.InstancedMesh;
+  private readonly box: THREE.Box3;
   private readonly flock: Flock;
   private readonly spec: SchoolSpec;
   private readonly phase: number;
@@ -123,6 +124,13 @@ export class FishSchool {
 
     const material = patchWater(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), { fish: true });
     this.mesh = new THREE.InstancedMesh(geometry, material, spec.count);
+    // ADR 0006: with a wide aquarium a school that is out of the picture is not drawn. The school wanders inside its box,
+    // so a fixed box around it does for culling (computing it from the instances every frame would cost more).
+    const pad = spec.length * 2;
+    this.box = new THREE.Box3(
+      new THREE.Vector3(spec.min[0] - pad, spec.min[1] - pad, spec.min[2] - pad),
+      new THREE.Vector3(spec.max[0] + pad, spec.max[1] + pad, spec.max[2] + pad),
+    );
     this.mesh.frustumCulled = false;
     const tint = new THREE.Color();
     for (let i = 0; i < spec.count; i++) {
@@ -130,6 +138,16 @@ export class FishSchool {
       this.mesh.setColorAt(i, tint);
     }
     this.writeMatrices();
+  }
+
+  private static readonly frustum = new THREE.Frustum();
+  private static readonly projection = new THREE.Matrix4();
+
+  /** Shows the school only while its box is in the picture. */
+  cull(camera: THREE.Camera): void {
+    FishSchool.projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    FishSchool.frustum.setFromProjectionMatrix(FishSchool.projection);
+    this.mesh.visible = FishSchool.frustum.intersectsBox(this.box);
   }
 
   update(dt: number): void {
@@ -162,9 +180,24 @@ export class FishSchool {
   }
 }
 
-export const SCHOOLS: SchoolSpec[] = [
+/** The first version's four schools (the middle of the aquarium) … */
+const MIDDLE_SCHOOLS: SchoolSpec[] = [
   { count: 70, length: 0.62, heightRatio: 0.42, pattern: 'plain', colors: [0xff8a1f, 0xff9e3a, 0xff7a2a, 0xffb347], min: [-11, 1, -8], max: [7, 5.5, 3], minSpeed: 0.9, maxSpeed: 1.8, seed: 11 },
   { count: 90, length: 0.5, heightRatio: 0.3, pattern: 'sardine', colors: [0xcfe3f0, 0xaecbe0, 0xdcecf6], min: [-19, 4.5, -12], max: [19, 9.5, 2], minSpeed: 2, maxSpeed: 3.2, seed: 12 },
   { count: 12, length: 1.0, heightRatio: 0.6, pattern: 'tang', colors: [], min: [1, 1.5, -6], max: [17, 5.5, 3], minSpeed: 1, maxSpeed: 1.8, seed: 13 },
   { count: 8, length: 0.95, heightRatio: 0.85, pattern: 'banner', colors: [], min: [-15, 2, -8], max: [1, 6.5, 2], minSpeed: 0.8, maxSpeed: 1.4, seed: 14 },
 ];
+
+/** … and the same kinds of schools further out, so the background life fills the whole width (ADR 0006). */
+const WIDE_SCHOOLS: SchoolSpec[] = [
+  { count: 30, length: 0.62, heightRatio: 0.42, pattern: 'plain', colors: [0xff8a1f, 0xff9e3a, 0xff7a2a, 0xffb347], min: [-44, 1, -8], max: [-29, 5.5, 3], minSpeed: 0.9, maxSpeed: 1.8, seed: 21 },
+  { count: 30, length: 0.62, heightRatio: 0.42, pattern: 'plain', colors: [0xff8a1f, 0xff9e3a, 0xff7a2a, 0xffb347], min: [28, 1, -8], max: [43, 5.5, 3], minSpeed: 0.9, maxSpeed: 1.8, seed: 31 },
+  { count: 24, length: 0.5, heightRatio: 0.3, pattern: 'sardine', colors: [0xcfe3f0, 0xaecbe0, 0xdcecf6], min: [-48, 4.5, -12], max: [-27, 9.5, 2], minSpeed: 2, maxSpeed: 3.2, seed: 22 },
+  { count: 24, length: 0.5, heightRatio: 0.3, pattern: 'sardine', colors: [0xcfe3f0, 0xaecbe0, 0xdcecf6], min: [27, 4.5, -12], max: [48, 9.5, 2], minSpeed: 2, maxSpeed: 3.2, seed: 32 },
+  { count: 6, length: 1.0, heightRatio: 0.6, pattern: 'tang', colors: [], min: [-39, 1.5, -6], max: [-24, 5.5, 3], minSpeed: 1, maxSpeed: 1.8, seed: 23 },
+  { count: 6, length: 1.0, heightRatio: 0.6, pattern: 'tang', colors: [], min: [23, 1.5, -6], max: [38, 5.5, 3], minSpeed: 1, maxSpeed: 1.8, seed: 33 },
+  { count: 5, length: 0.95, heightRatio: 0.85, pattern: 'banner', colors: [], min: [-46, 2, -8], max: [-31, 6.5, 2], minSpeed: 0.8, maxSpeed: 1.4, seed: 24 },
+  { count: 5, length: 0.95, heightRatio: 0.85, pattern: 'banner', colors: [], min: [30, 2, -8], max: [45, 6.5, 2], minSpeed: 0.8, maxSpeed: 1.4, seed: 34 },
+];
+
+export const SCHOOLS: SchoolSpec[] = [...MIDDLE_SCHOOLS, ...WIDE_SCHOOLS];

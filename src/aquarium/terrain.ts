@@ -1,12 +1,19 @@
 /** Extent of the aquarium's "usable" water volume (world units). */
 export const TANK = {
-  minX: -24,
-  maxX: 24,
+  minX: -37.5,
+  maxX: 37.5,
   minZ: -22,
   maxZ: 8,
   /** Water surface; animals stay below this. */
   surfaceY: 11,
 } as const;
+
+/**
+ * ADR 0006: the aquarium is about three screen widths wide (in landscape: 25 units visible × 3). Creatures and the
+ * camera stay inside ±WORLD_HALF_WIDTH; the reef and the sand reach a little further so the edge is never seen.
+ */
+export const WORLD_HALF_WIDTH = 37.5;
+export const REEF_HALF_WIDTH = 48;
 
 /** Sand height at (x, z): gentle dunes, rising slowly towards the back wall. */
 export function terrainHeight(x: number, z: number): number {

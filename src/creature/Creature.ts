@@ -35,7 +35,10 @@ export class Creature {
   /** Saved creatures grow into view one by one after the page has loaded, instead of all popping up at once. */
   private appear: { delay: number; t: number } | null = null;
 
-  private readonly texture: THREE.CanvasTexture;
+  private texture: THREE.CanvasTexture;
+  /** The drawing at the size it was made (when larger than the kept 512×512): used while the camera follows this creature. */
+  private fullSource: HTMLCanvasElement | null;
+  private fullTexture: THREE.CanvasTexture | null = null;
   private readonly material: THREE.MeshLambertMaterial;
   private readonly uniforms: { uPhase: { value: number }; uFlap: { value: number }; uTurn: { value: number } };
   private phase: number;
@@ -52,6 +55,10 @@ export class Creature {
     this.createdAt = meta.createdAt ?? Date.now();
     this.species = template.species;
     this.drawing = downscaleDrawing(drawingCanvas, 512);
+    this.fullSource = drawingCanvas.width > 512 ? drawingCanvas : null;
+    // A full-size canvas is 4 MB: it is only kept for a minute (a child may release many creatures in one visit).
+    // From M9 the full drawing is stored (ADR 0009), and then it can be fetched when a creature is followed.
+    if (this.fullSource) globalThis.setTimeout(() => (this.fullSource = this.fullTexture ? this.fullSource : null), 60_000);
     this.texture = createCreatureTexture(this.drawing, template, maxAnisotropy);
     this.uniforms = { uPhase: { value: 0 }, uFlap: { value: 0 }, uTurn: { value: 0 } };
     this.material = createCreatureShader(template, this.texture, this.uniforms);
@@ -64,6 +71,32 @@ export class Creature {
   /** 0 = flat as on the drawing, 1 = fully swimming. For display copies (species bubbles) that never swim for real. */
   setUnfold(amount: number): void {
     this.uniforms.uFlap.value = amount;
+  }
+
+  /**
+   * ADR 0006: the creature the camera follows gets the drawing at full texture resolution; all the others keep 512×512
+   * (30 creatures at full size would cost too much memory). Only possible when the full drawing is known: for creatures
+   * released in this visit now, for saved ones once they are stored in full size (ADR 0009, M9).
+   */
+  setFullDetail(on: boolean): void {
+    if (!this.fullSource) return;
+    if (on && !this.fullTexture) {
+      this.fullTexture = createCreatureTexture(this.fullSource, this.template, this.texture.anisotropy);
+    }
+    const next = on ? this.fullTexture : this.texture;
+    if (next && this.material.map !== next) {
+      this.material.map = next;
+      this.material.needsUpdate = true;
+    }
+    if (!on && this.fullTexture) {
+      this.fullTexture.dispose();
+      this.fullTexture = null;
+    }
+  }
+
+  /** Width in px of the texture the body is drawn with right now (for tests). */
+  get textureSize(): number {
+    return (this.material.map?.image as HTMLCanvasElement | undefined)?.width ?? 0;
   }
 
   /** Hidden for `delay` seconds, then grows to full size with a little overshoot. */
@@ -97,15 +130,15 @@ export class Creature {
     return true;
   }
 
-  /** Starts the farewell: the creature turns to the nearest side and swims out of the picture, a little away from the viewer. */
-  beginFarewell(): void {
+  /** Starts the farewell: the creature turns to the nearest side (`dir`: +1 right, −1 left, as seen from the camera) and swims out of the picture, a little away from the viewer. */
+  beginFarewell(dir?: number): void {
     if (this.leaving) return;
     this.swimmer = null;
     this.transition = null;
     this.uniforms.uFlap.value = 1;
     this.reaction = null;
     this.mesh.rotation.x = 0;
-    this.leaving = { dir: this.group.position.x >= 0 ? 1 : -1, t: 0 };
+    this.leaving = { dir: dir ?? (this.group.position.x >= 0 ? 1 : -1), t: 0 };
   }
 
   /** Starts free swimming at a given pose (used by the Transition hand-over and when loading saved creatures). */
@@ -184,6 +217,7 @@ export class Creature {
 
   dispose(): void {
     this.texture.dispose();
+    this.fullTexture?.dispose();
     this.material.dispose();
   }
 }
