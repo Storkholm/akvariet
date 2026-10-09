@@ -1,6 +1,6 @@
 # 0004 – Webspil med Three.js, udgivet på GitHub Pages
 
-**Status:** Besluttet (2026-10-06)
+**Status:** Besluttet (2026-10-06). Lydfiler: se undtagelsen i ADR 0007.
 
 ## Kontekst
 Spillet er til børn på tablet/mobil og skal også virke med mus. Det skal kunne bygges og testes af Claude Code i en cloud session uden en rigtig enhed.

@@ -1,6 +1,6 @@
 # 0003 – Tegnefladen ligger oven på et akvarie der altid kører
 
-**Status:** Besluttet (2026-10-06)
+**Status:** Besluttet (2026-10-06). Kameradelen af 3.4 er ændret af ADR 0006.
 
 ## Kontekst
 I den japanske installation er tegneskærm og akvarie adskilte skærme. Her er der kun én skærm (tablet/mobil).

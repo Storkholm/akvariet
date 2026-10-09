@@ -4,6 +4,8 @@
 
 Læs også: [CONTEXT.md](CONTEXT.md) (ordliste – brug de ord) · [docs/adr/](docs/adr/) (beslutninger) · [docs/reference/](docs/reference/) (fotos af forbilledet).
 
+> **Version 2 (M7–M13)** er beskrevet i [afsnit 8](#8-version-2--forbedringer-m7m13). Hvor afsnit 8 og afsnit 3–4 siger noget forskelligt, gælder afsnit 8.
+
 ## 1. Vision og forbillede
 
 Forbilledet er en "digital akvarie"-installation fotograferet i Japan (se `docs/reference/`):
@@ -125,10 +127,17 @@ Hver milepæl skal ende med noget der kan spilles i browseren, være committet o
 | **M4** | Gemning, loft på 30 med afsked, voksentilstand | Dyrene er der stadig efter genindlæsning |
 | **M5** | Skildpadde + artsvælger med bobler | Begge arter kan vælges, tegnes og svømme |
 | **M6** | Glædeshop, lyd, PWA/offline, finpudsning på rigtig tablet | Kan installeres på hjemmeskærmen og spilles offline |
+| **M7** | Småting og sikkerhed (8.1): hold-nede Slip løs med 3-2-1, nyt fyld-spand-ikon, grå og regnbue-blyant, fuldskærm og hjælp i voksentilstand | Et dyr kan ikke slippes løs ved et uheld; 14 blyanter; fuldskærm virker på Android og iPad |
+| **M8** | Kamera og karrusel (8.2–8.3): bredere akvarie, swipe/knib, følg dyr, artskarrusel med kigge-/tegne-knap | Man kan gå på opdagelse i et akvarie med 30 dyr uden trængsel og se det uden vælger |
+| **M9** | Tegnefladen 2 (8.4): zoom, tegning i 1024, stempler, mønsterfyld, bakkesider med swipe og faner | Et barn kan zoome ind, tegne et øje og stemple stjerner på en rokke |
+| **M10** | Navne (8.6): navnefelt, dyrelager v2, navn på bugen, navneskilt | Et navngivet dyr viser sit navn og har det stadig efter genindlæsning; v1-dyr virker stadig |
+| **M11** | Fisk (8.5): sideskabeloner, klovnefisk, pufferfisk, haj | Tre nye arter kan vælges, tegnes og svømme; pufferfisken puster sig op |
+| **M12** | Bunddyr (8.5): søstjerne (også på ruden), søpindsvin, søpølse | Bunddyrene kravler på sandet; søstjerner kravler af og til op på ruden |
+| **M13** | Samurai-mode (8.7): sværd, hug, stykker, rensehajer, brøl | Tre hug kalder rensehajerne, som spiser stykkerne og aldrig levende dyr |
 
-## 6. Uden for v1 (bevidst fravalgt)
+## 6. Uden for v2 (bevidst fravalgt)
 
-Fælles akvarie på tværs af enheder · flere end to arter · fodring · kamerastyring · musik · konti/login · deling af tegninger · app-butikker.
+Fælles akvarie på tværs af enheder · fodring · musik · konti/login · deling af tegninger · app-butikker · flere hug i samme dyr · to forskellige sider på fisk · bunddyr der kravler op ad koraller.
 
 ## 7. Åbne spørgsmål
 
@@ -178,3 +187,101 @@ Fælles akvarie på tværs af enheder · flere end to arter · fodring · kamera
 - **M6 – PWA/offline:** `public/manifest.webmanifest` (dansk, `display: standalone`, ikoner 192/512 og et maskerbart 512) og ikoner genereret af `scripts/render-icons.mjs` ud fra rokkens skabelon (`public/icon.svg`). Der er ingen runtime-afhængighed: `vite.config.ts` skriver en lille håndskrevet service worker (`dist/sw.js`), som lægger alle byggede filer i en cache ved installation (cachenavnet er en hash af fillisten, så en ny version erstatter den gamle), svarer cache-først og falder tilbage til `index.html` ved navigation. Den registreres kun i produktionsbygget. Testet: Chromium finder ingen installationsfejl, og siden åbner offline *med* de gemte dyr (de ligger i IndexedDB). *Tilføjelse til hjemmeskærmen på en rigtig iPad (Del → Føj til hjemmeskærm) er ikke prøvet.* En ny version er først aktiv ved næste genindlæsning efter den er hentet (`skipWaiting` + `clients.claim` gør den aktiv straks, men siden kører stadig den gamle kode til den lukkes).
 - **M6 – finpudsning:** gemte dyr vokser ind ét ad gangen (0,15 s imellem, højst 2,5 s i alt) i stedet for at stå der fra første billede; langt tryk (kontekstmenu), iOS' knibe-gestus og dobbelttryk-zoom er slået fra; skærmen auto-tilpasser opløsningen (`PixelRatioGovernor`): er billedet langsomt (> 24 ms pr. billede i 2 s i træk), sænkes pixeltætheden i trin à 0,8, aldrig under 1. *Billedrate på en rigtig iPad (mål 60 fps) er stadig ikke målt – software-GL i containeren siger intet om det.*
 - **M6 – ikke gjort:** ingen separate lydvarianter at lytte til (A/B/C) – lyden kan ikke høres her, og et prototype-udvalg giver først mening, når du lytter selv. Hvis lyden ikke lyder rigtig, så sig hvad der er galt (for høj, for skinger, for mange bobler), så justerer jeg tallene.
+
+## 8. Version 2 – forbedringer (M7–M13)
+
+Bygget på ønsker fra test med børn (oktober 2026). Beslutninger: [ADR 0005](docs/adr/0005-sideskabeloner-til-fisk.md)–[0009](docs/adr/0009-dyrelager-v2-navn-og-stoerre-tegning.md). Designprincipperne i afsnit 2 gælder stadig: ingen læsning nødvendig, kan ikke gå galt, rolig og legende. Nye trykflader er også ≥ 48 px.
+
+### 8.1 Småting og sikkerhed (M7)
+
+**Slip løs skal holdes nede.** Børn kom til at slippe dyr løs uden at ville det.
+- Et tryk gør ingenting ud over en lille "hold mig"-vippen og en ring der viser, at knappen skal holdes.
+- Mens knappen holdes, tæller et stort **3 – 2 – 1** ned midt på skærmen (0,5 sek. pr. tal, i alt 1,5 sek.), med en blød tone pr. tal. Ringen om knappen fylder op samtidig.
+- Slippes knappen (eller glider fingeren af den) før nedtællingen er færdig, krymper tallet væk, og intet sker.
+- Når nedtællingen når til ende, starter overgangen som i 3.3. Mus: hold museknappen nede. Tastatur: hold Enter/mellemrum nede.
+- **Nedtælling** (`ReleaseCountdown`) testes med Vitest (afbrydelse, fuldførelse) og e2e (et kort tryk slipper intet løs).
+
+**Fyld-spand-ikon:** det nuværende ikon ligner ikke en spand. Nyt ikon: en tydelig malerspand, der hælder, med en dråbe, der falder ud – genkendeligt for et barn på 4 år.
+
+**To nye farveblyanter** – i alt 14:
+- **Grå**, placeret mellem brun og sort.
+- **Regnbue** (sidst i bakken; blyanten selv er stribet i regnbuens farver). Stregens farve løber gennem regnbuen langs stregens længde (én hel runde pr. ca. 600 px i tegningen). Fyld-spanden med regnbue fylder området med vandrette regnbuebånd. Stempler (8.4) i regnbue får hver sin farve.
+- Bakken skal stadig passe på 1024 px brede iPads og stående telefoner (fx 2 × 7 på telefon).
+
+**Fuldskærm** – børnene kommer let væk fra siden:
+- `manifest.webmanifest`: `"display": "fullscreen"` med `"display_override": ["fullscreen", "standalone"]`, så den installerede app på Android er i fuldskærm og iOS falder tilbage til standalone.
+- **Fuldskærm-knap** (firkant med pile) ved siden af lydknappen, men kun hvor Fullscreen API findes (Android Chrome, iPad Safari, computer). På iPhone i Safari vises den ikke.
+- I **voksentilstand** vises en lille hjælpeboks (voksentekst er tilladt her) med: "Læg spillet på hjemmeskærmen" (iOS: Del → Føj til hjemmeskærm; Android: menu → Installer app) og "Lås barnet inde i spillet" (iOS: Guidet adgang; Android: Fastgør app). Den vises ikke, når spillet allerede kører installeret.
+
+### 8.2 Bredere akvarie, kamera og følg dyr (M8)
+
+Se [ADR 0006](docs/adr/0006-bredere-akvarie-og-kamera.md).
+- Akvariet er ca. 3 skærmbredder bredt. Revet bygges i bidder, så kun det synlige tegnes; baggrundslivet fordeles i hele bredden.
+- **Én finger** (eller mus-træk): glid til siden og lidt op/ned. **Knib** (eller scrollhjul): zoom 1×–2,5×. Kameraet bremser blødt ved kanterne og kan aldrig komme uden for akvariet eller under sandet.
+- **Dobbelttryk på et dyr** (eller dobbeltklik): kameraet følger dyret i passende afstand, dyrets navneskilt vises (8.6), og dyret får fuld teksturopløsning. Et swipe eller dobbelttryk på tom plads stopper følgningen.
+- Efter 30 sek. uden berøring glider kameraet roligt tilbage til midten (ikke mens det følger et dyr – så stopper følgningen først efter 2 min).
+- Glædeshop ved kort tryk virker som før. Et træk regnes først fra ca. 10 px bevægelse.
+- Ydeevne: det synlige antal trekanter må ikke overstige v1's. Mål og skriv tallene i "Åbne spørgsmål".
+
+### 8.3 Artskarrusel og kigge-knap (M8)
+
+Erstatter artsvælgeren i 3.1. Der bliver 8 arter.
+- **Karrusel** (`SpeciesCarousel`): boblerne ligger på en vandret række, man swiper i (med fart og fast "snap" til en boble). Ca. 3 bobler ses ad gangen på tablet, ca. 1½ på stående telefon. Kun det bånd, karrusellen fylder, reagerer på swipe som karrusel; uden for båndet styrer swipe kameraet.
+- Boblerne er stadig 3D og forankret til skærmen, med ufarvede dyr der svømmer på stedet. Tryk = pop og tegnefladen, som før.
+- **Kigge-knap** (`ViewToggle`, et øje): folder karrusellen væk (boblerne svæver ned og ud), så man kan se akvariet frit. Knappen skifter da til en **tegne-knap** (en blyant), som folder karrusellen frem igen. Knappen sidder samme sted hele tiden (nederst til højre, så den ikke kolliderer med låsen nederst til venstre).
+- Rækkefølge i karrusellen: rokke, skildpadde, klovnefisk, pufferfisk, haj, søstjerne, søpindsvin, søpølse (de nye kommer med i M11/M12).
+
+### 8.4 Tegnefladen 2: zoom, stempler og mønstre (M9)
+
+**Zoom:**
+- **Knib** med to fingre zoomer 1×–4× omkring midten af fingrene; **to fingre trækker** flytter rundt. Én finger tegner altid. Lander en anden finger midt i en streg, fjernes stregen igen (så knib aldrig efterlader en streg).
+- **Dobbelttryk med to fingre** (eller en lille "hele dyret"-knap, der kun vises, når man er zoomet ind): tilbage til hele dyret.
+- Mus: scrollhjul zoomer omkring markøren; træk med mellemste knap eller mellemrum+træk flytter.
+- **Stregtykkelserne er i skærm-pixel**, så en tynd streg bliver tyndere i tegningen, når man zoomer ind – det er det, der gør detaljer mulige. Det gælder også viskelæder og stempler.
+- Tegningen er 1024 × 1024 og gemmes nu i fuld størrelse ([ADR 0009](docs/adr/0009-dyrelager-v2-navn-og-stoerre-tegning.md)).
+
+**Bakkesider (`TrayPage`):** bakken har to sider – **blyanter** og **mønstre**. Man skifter ved at swipe bakken til siden eller trykke på to små faner på bakkens venstre kant (et blyant- og et stjerne-ikon); den aktive fane er tydelig. Den valgte farve gælder på begge sider og vises som en farveklat på mønstersiden.
+
+**Stempler (`Stamp`)** – ca. 10 figurer: stjerne, hjerte, prik, blomst, øje, skæl, sol, måne, lyn, smil. Tryk sætter ét stempel i den valgte farve; træk lægger en række stempler med jævn afstand. Størrelsen følger stregtykkelsen (og zoom). Stempler klippes ved omridset og kan fortrydes som én handling pr. tryk/træk.
+
+**Mønsterfyld (`PatternFill`)** – 4 mønstre: striber, prikker, skæl, zigzag. Virker som fyld-spanden (samme område og tolerance), men fylder med mønstret i den valgte farve oven på områdets nuværende farve. Mønstret ligger i tegningens koordinater (ikke skærmens), så det ser ens ud uanset zoom.
+
+### 8.5 Nye arter (M11 og M12)
+
+Alle nye arter tilføjes som skabelon + svømmeparametre (4.1). Bemærk at **`side`-skabeloner** er nye ([ADR 0005](docs/adr/0005-sideskabeloner-til-fisk.md)).
+
+| Art | Kode | Skabelon | Bevægelse |
+|---|---|---|---|
+| Klovnefisk | `clownfish` | side: krop, halefinne, rygfinne, bugfinne | Hurtig, kvik; korte sving; holder sig gerne nær revet |
+| Pufferfisk | `pufferfish` | side: rund krop, lille hale, små finner | Langsom, "vralter" med små finner. **Glædeshop:** puster sig op til en kugle med små pigge i 2 sek. og bliver normal igen |
+| Haj | `shark` | side: krop, halefinne (høj øvre lap), rygfinne, brystfinner | Langsom, rolig, glidende; større end de andre (ca. 1,4 × rokken). Fredelig – spiser aldrig noget |
+| Søstjerne | `starfish` | top: midte + fem arme | **Bunddyr.** Kravler meget langsomt på sandet med bløde armbevægelser. Af og til kravler den op på **ruden** (se nedenfor) |
+| Søpindsvin | `seaUrchin` | top: rund krop | **Bunddyr.** Ruller/kravler langsomt. Får 3D-pigge (instancing), farvet efter tegningen ved piggens rod, der vifter let |
+| Søpølse | `seaCucumber` | top: aflang krop | **Bunddyr.** Kravler med en bølge, der løber gennem kroppen (strækker og trækker sig sammen) |
+
+**Bunddyr (`Crawler`):** bevæger sig på sandets overflade (følger dens højde og hældning), undgår koraller og hinanden og forlader aldrig bunden. De tæller med i loftet på 30. Overgangen efter Slip løs ender med, at de daler blødt ned på sandet.
+
+**Ruden (`Glass`):** et usynligt plan lige foran kameraets udgangsposition. En søstjerne kan (ca. hvert 2.–3. minut, højst én ad gangen) kravle hen til forreste kant af sandet, op på ruden og langsomt hen over den, med **ryggen mod beskueren** (kunstnerisk frihed: barnet skal se sin tegning), og ned igen. Rudens søstjerne flytter sig ikke med kameraet; den sidder på akvariets forrude.
+
+### 8.6 Navne (M10)
+
+- **Navnefelt** på tegnefladen: et lille felt med "Aa" øverst i midten. Tryk åbner tastaturet; højst 12 tegn (bogstaver inkl. æøå, tal, mellemrum). Feltet er valgfrit. Skabelonen må ikke skjules af tastaturet på telefon (rul/skalér, mens tastaturet er åbent).
+- Navnet gemmes på dyret ([ADR 0009](docs/adr/0009-dyrelager-v2-navn-og-stoerre-tegning.md)).
+- **På bugen:** for `top`-arter, der svømmer (rokke, skildpadde), skrives navnet midt på bugen i en mørkere tone af bugens farve, så det kan læses, når man ser dyret nedefra (ikke spejlvendt).
+- **Navneskilt (`NameTag`):** en lille afrundet skilt-boble, der svæver over dyret i 3 sek. ved glædeshop og hele tiden, mens kameraet følger det. Gælder alle arter. Dyr uden navn har intet skilt.
+- Voksentilstandens slette-dialog viser navnet ved miniaturen.
+
+### 8.7 Samurai-mode (M13)
+
+Se [ADR 0008](docs/adr/0008-samurai-snit-og-rensehajer.md) og [ADR 0007](docs/adr/0007-indtalte-lydfiler.md).
+- **Sværd-knap** (`SamuraiMode`) i akvariet (øverst til venstre). Holdes nede i 2 sek. (ring fylder op). Ved start: et gong, en tynd rød-guld ramme om skærmen, karrusellen folder sig væk, og kamera-træk slås fra (knib virker stadig). Et tryk på sværdet igen, eller 60 sek. uden hug, afslutter.
+- **Hug (`slash`):** swipe tegner et lysende hvidt sværdspor, der falmer på 0,3 sek. Dyr, hvis krop sporet krydser, deles i to **stykker** (`Fragment`) langs hugget: rent snit, snitfladen lukket i dyrets grundfarve, ingen blod. Stykkerne glider lidt fra hinanden, tumler og synker til bunds. Bobler og et "pling".
+- **Brøl (`Kiai`):** ved hvert hug et tilfældigt indtalt brøl + swoosh. Mangler filerne, kun swoosh.
+- Dyret slettes fra dyrelageret ved hugget. Stykker gemmes aldrig.
+- **Rensehajer (`CleanupSharks`):** ved 3 huggede dyr (eller ved afslutning, hvis der ligger stykker) kommer 4–5 grå hajer ind fra siden, spiser stykkerne (snap, stykket krymper i bobler, "nam") og svømmer ud. De rører aldrig levende dyr og viger for dem. Tælleren nulstilles, når de er gået.
+- **Optagelser:** Martin lægger `kiai-1.mp3` … `kiai-4.mp3` i `public/sounds/`. Er de der ikke, når M13 bygges, så byg med swoosh-fallback og skriv det under "Åbne spørgsmål".
+
+### 8.8 Stadig åbne valg fra v1
+
+- Dæmpning af akvariet bag artsvælgeren (3.1) blev ikke lavet – den gælder ikke længere, da karrusellen kan foldes væk.
+- Ydeevnen på en rigtig iPad er stadig ikke målt; M8 skal skrive målte tal (fps, trekanter, draw calls) ind under "Åbne spørgsmål", målt i headless-browseren som det bedste vi har.
