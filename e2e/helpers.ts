@@ -286,3 +286,13 @@ export async function creatureScreenPoint(page: import('@playwright/test').Page,
     return { x: (v.x * 0.5 + 0.5) * a.viewport.width, y: (-v.y * 0.5 + 0.5) * a.viewport.height };
   }, id);
 }
+
+/** "Slip løs" must be held (DESIGN 8.1): press the mouse on it, wait out the 3-2-1 and let go. */
+export async function holdRelease(page: import('@playwright/test').Page, holdMs = 1800): Promise<void> {
+  const box = await page.locator('.release-btn').boundingBox();
+  if (!box) throw new Error('Slip løs is not visible');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(holdMs);
+  await page.mouse.up();
+}

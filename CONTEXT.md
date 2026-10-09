@@ -47,7 +47,7 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Loft** | `MAX_CREATURES` | Højst 30 dyr svømmer i akvariet. Ved nr. 31 tager det ældste dyr afsked. |
 | **Dyrelager** | `CreatureStore` | Stedet på enheden (IndexedDB) hvor dyrene gemmes mellem besøg. Kun det barnet har tegnet gemmes: art, tegning (v2: 1024×1024 PNG), navn og oprettelsestidspunkt. ADR 0009. |
 | **Afsked** | `farewell()` | Når akvariet er fuldt og et nyt dyr kommer ind, svømmer det ældste dyr ud af billedet og slettes. |
-| **Lyd** | `AudioEngine` | Alle lyde, lavet med Web Audio i koden (ingen lydfiler): en blød tone pr. farveblyant (12 toner i en pentatonisk skala fra C4), svup ved Slip løs, pop ved boblen, bobler ved glædeshop, bloop ved sletning og en svag underlig brummen i vandet. Starter først efter første tryk; lydknappen (højttaler, øverst til højre) slår det fra, og valget huskes. |
+| **Lyd** | `AudioEngine` | Alle lyde, lavet med Web Audio i koden (ingen lydfiler): en blød tone pr. farveblyant (14 toner i en pentatonisk skala fra A3) og en tone pr. tal i nedtællingen, svup ved Slip løs, pop ved boblen, bobler ved glædeshop, bloop ved sletning og en svag underlig brummen i vandet. Starter først efter første tryk; lydknappen (højttaler, øverst til højre) slår det fra, og valget huskes. |
 | **Voksentilstand** | `AdultMode` | Skjult tilstand (hold låse-ikonet nede i 3 sek.), hvor man kan slette enkelte dyr og få hjælp til fuldskærm. |
 | **Samurai-mode** | `SamuraiMode` | Tilstand (hold sværd-knappen i 2 sek.), hvor swipe er sværdhug. ADR 0008. |
 | **Hug** | `slash()` | Ét sværdhug: et lysende spor; dyr det krydser, deles i to stykker og slettes. |

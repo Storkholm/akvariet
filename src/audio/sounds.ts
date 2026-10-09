@@ -9,8 +9,8 @@ import type { Rng } from '../util/random';
 /** Major pentatonic: any two notes sound fine together, so the crayons can never "play a wrong note". */
 export const PENTATONIC = [0, 2, 4, 7, 9];
 
-/** The twelve crayons climb a pentatonic scale from C4 (about 262 Hz) to about 1.2 kHz. */
-export function crayonFrequency(index: number, base = 261.63): number {
+/** The fourteen crayons climb a pentatonic scale from A3 (220 Hz) to about 1.3 kHz. */
+export function crayonFrequency(index: number, base = 220): number {
   const i = Math.max(0, Math.round(index));
   const semitones = PENTATONIC[i % PENTATONIC.length] + 12 * Math.floor(i / PENTATONIC.length);
   return base * Math.pow(2, semitones / 12);
@@ -82,6 +82,9 @@ export interface PlingParams {
   peak: number;
 }
 export const PLING: PlingParams = { attack: 0.006, decay: 0.45, overtone: 0.28, peak: 0.28 };
+
+/** The softer, rounder tone of the "Slip løs" countdown. */
+export const COUNTDOWN_PLING: PlingParams = { attack: 0.01, decay: 0.32, overtone: 0.1, peak: 0.2 };
 
 /** The "pling" when a crayon is chosen. Returns how long it lasts (seconds). */
 export function pling(ctx: BaseAudioContext, out: AudioNode, t: number, freq: number, p: PlingParams = PLING): number {

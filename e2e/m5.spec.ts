@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { newTouchPage, openPanel, paintStripes, PHONE, pixelAt, registrationError, reloadAndRestore, sceneInfo, TABLET, waitForAquarium } from './helpers';
+import { holdRelease, newTouchPage, openPanel, paintStripes, PHONE, pixelAt, registrationError, reloadAndRestore, sceneInfo, TABLET, waitForAquarium } from './helpers';
 
 type W = {
   aquarium: {
@@ -136,7 +136,7 @@ for (const [name, size] of [['tablet', TABLET], ['phone', PHONE]] as const) {
     });
     expect(stats.inside).toBeGreaterThan(stats.area * 0.97);
 
-    await page.getByRole('button', { name: 'Slip løs' }).click();
+    await holdRelease(page);
     await adv(page, 0);
     const err = await registrationError(page, rect);
     expect(err.rimVertices).toBeGreaterThan(200);
@@ -177,7 +177,7 @@ test('M5: the turtle\'s own colours are on the body, with eyes and a pale belly 
   for (const [u, v] of probes) expected.push(hue(await pixelAt(page, u, v)));
   expect(expected).toEqual(['yellow', 'green', 'yellow', 'green', 'yellow', 'yellow', 'yellow']);
 
-  await page.getByRole('button', { name: 'Slip løs' }).click();
+  await holdRelease(page);
   await adv(page, 0);
   await page.addStyleTag({ content: '.ui { visibility: hidden !important; }' });
   await adv(page, 0);
@@ -233,7 +233,7 @@ test('M5: both species swim together, are saved, and come back as the right spec
   for (const label of ['Skildpadde', 'Rokke', 'Skildpadde'] as const) {
     await openPanel(page, label);
     await paintStripes(page);
-    await page.getByRole('button', { name: 'Slip løs' }).click();
+    await holdRelease(page);
     await adv(page, 4.2);
   }
   const species = () =>

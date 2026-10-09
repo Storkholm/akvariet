@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { creatureScreenPoint, newTouchPage, openPanel, paintStripes, PHONE, reloadAndRestore, sceneInfo, seedCreatures, storedIds, TABLET } from './helpers';
+import { creatureScreenPoint, holdRelease, newTouchPage, openPanel, paintStripes, PHONE, reloadAndRestore, sceneInfo, seedCreatures, storedIds, TABLET } from './helpers';
 
 const adv = (page: import('@playwright/test').Page, s: number) =>
   page.evaluate((x) => (window as unknown as { aquarium: { advance(s: number): void } }).aquarium.advance(x), s);
@@ -7,7 +7,7 @@ const adv = (page: import('@playwright/test').Page, s: number) =>
 async function releaseOne(page: import('@playwright/test').Page): Promise<void> {
   await openPanel(page);
   await paintStripes(page);
-  await page.getByRole('button', { name: 'Slip løs' }).click();
+  await holdRelease(page);
 }
 
 /** Holds the lock for `ms` with a real pointer (mouse) – long enough, or too short. */

@@ -142,6 +142,9 @@
   transform: translateY(calc(-1 * var(--lift)));
   filter: drop-shadow(0 4px 5px rgba(0, 20, 60, 0.35));
 }
+.crayon[data-rainbow] {
+  --c: repeating-linear-gradient(135deg, #e8332a 0 9px, #f58a1f 9px 18px, #f9d21e 18px 27px, #3fb950 27px 36px, #2f7bdc 36px 45px, #8a45c6 45px 54px);
+}
 .crayon-tip {
   position: absolute;
   top: 0;
@@ -187,8 +190,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* leave room for the 12 crayons on the left; tools sit on the wood to their right */
-  padding: 0 max(14px, env(safe-area-inset-right)) 0 calc(max(14px, env(safe-area-inset-left)) + 12 * var(--cw) + 18px);
+  /* leave room for the 14 crayons on the left; tools sit on the wood to their right */
+  padding: 0 max(14px, env(safe-area-inset-right)) 0 calc(max(14px, env(safe-area-inset-left)) + 14 * var(--cw) + 18px);
   background: linear-gradient(#f6e2b0, #e6c987);
   border-top: 3px solid #fff4d2;
   border-radius: 22px 22px 0 0;
@@ -229,6 +232,28 @@
   padding: 8px;
   border-radius: 12px;
 }
+.release-wrap {
+  --p: 0;
+  flex: none;
+  padding: 5px;
+  border-radius: 24px;
+  /* the ring: always faintly there ("hold me"), and it fills clockwise while the countdown runs */
+  background: conic-gradient(#ffd166 calc(var(--p) * 360deg), rgba(255, 255, 255, 0.45) 0);
+  box-shadow: 0 0 0 2px rgba(60, 40, 10, 0.12);
+  touch-action: none;
+}
+.release-wrap.holding {
+  box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.55), 0 0 22px rgba(255, 209, 102, 0.7);
+}
+.release-wrap.wiggle {
+  animation: hold-me 0.45s ease;
+}
+@keyframes hold-me {
+  0%, 100% { transform: none; }
+  20% { transform: translateY(-5px) rotate(-3deg); }
+  45% { transform: translateY(0) rotate(3deg); }
+  70% { transform: translateY(-2px) rotate(-1.5deg); }
+}
 .release-btn {
   display: flex;
   align-items: center;
@@ -249,8 +274,40 @@
   width: 34px;
   height: 34px;
 }
-.release-btn:active {
+.release-btn:active,
+.release-wrap.holding .release-btn {
   filter: brightness(1.12);
+}
+.release-btn {
+  touch-action: none;
+}
+
+/* the big 3 – 2 – 1 in the middle of the screen while "Slip løs" is held */
+.countdown {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  font-size: min(46vh, 46vw);
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+  -webkit-text-stroke: min(3.2vh, 3.2vw) #1f7fe0;
+  paint-order: stroke fill;
+  text-shadow: 0 8px 28px rgba(0, 30, 80, 0.45);
+  animation: count-pop 0.5s ease-out;
+}
+.countdown.gone {
+  transform: scale(0.1);
+  opacity: 0;
+  transition: transform 0.25s ease-in, opacity 0.25s ease-in;
+}
+@keyframes count-pop {
+  0% { transform: scale(1.6); opacity: 0; }
+  30% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.88); opacity: 1; }
 }
 
 /* "Slip løs": the layer clears away while the 3D body (already underneath) takes over */
@@ -262,7 +319,8 @@
   transition: background 0.7s ease, backdrop-filter 0.7s ease, -webkit-backdrop-filter 0.7s ease;
 }
 .panel.releasing .top-buttons,
-.panel.releasing .bottom {
+.panel.releasing .bottom,
+.panel.releasing .countdown {
   opacity: 0;
   transform: translateY(26px);
   transition: opacity 0.35s ease, transform 0.45s ease;
@@ -319,9 +377,9 @@
   background: #3bb673;
 }
 
-/* Narrower landscape screens (e.g. 1024 px iPads): no room beside the crayons, so the tools sit on
+/* Narrower landscape screens (up to a 1366 px iPad Pro's neighbours; 14 crayons are wide): no room beside the crayons, so the tools sit on
    the wood under them (the crayons' lower halves are tucked behind the tray anyway). */
-@media (orientation: landscape) and (max-width: 1099px) {
+@media (orientation: landscape) and (max-width: 1359px) {
   .bar {
     padding-left: max(14px, env(safe-area-inset-left));
   }
@@ -330,7 +388,7 @@
 /* ---------- portrait / narrow: crayons lie in a compact 2×6 tray above the tools ---------- */
 @media (orientation: portrait), (max-width: 760px) {
   .panel {
-    --cw: min(52px, calc((100vw - 28px) / 6));
+    --cw: min(52px, calc((100vw - 24px) / 7));
     --portrait-top: calc(max(8px, env(safe-area-inset-top)) + 48px);
   }
   /* Home (left) and undo (right) sit in the top corners; the figure never starts above the strip they use. */
@@ -389,7 +447,7 @@
   .crayons {
     position: static;
     display: grid;
-    grid-template-columns: repeat(6, var(--cw));
+    grid-template-columns: repeat(7, var(--cw));
     justify-content: center;
     gap: 6px 0;
     padding-top: 12px;
@@ -437,8 +495,13 @@
     height: 48px;
     padding: 8px;
   }
+  .release-wrap {
+    padding: 4px;
+    border-radius: 22px;
+  }
   .release-btn {
     height: 52px;
+    width: 100%;
     justify-content: center;
     padding: 0 14px;
     font-size: 21px;
@@ -467,8 +530,11 @@
     width: 42px;
     height: 44px;
   }
+  .release-wrap {
+    padding: 4px;
+  }
   .release-btn {
-    height: 48px;
+    height: 50px;
     font-size: 18px;
   }
 }
@@ -538,12 +604,17 @@
   background: #e8eef4;
 }
 
-/* ---------- sound button (DESIGN 3.6): a loudspeaker in the top right corner ---------- */
-.sound-btn {
+/* ---------- top right corner: fullscreen and sound buttons (DESIGN 3.6, 8.1) ---------- */
+.top-right {
   position: absolute;
   top: max(6px, env(safe-area-inset-top));
   right: max(6px, env(safe-area-inset-right));
   z-index: 6;
+  display: flex;
+  gap: 6px;
+}
+.sound-btn,
+.fullscreen-btn {
   width: 48px;
   height: 48px;
   padding: 11px;
@@ -556,9 +627,36 @@
 .sound-btn[aria-pressed='false'] {
   opacity: 0.6;
 }
-/* While drawing in portrait the undo button sits in the top right corner: the speaker moves in beside it. */
+/* While drawing in portrait the undo button sits in the top right corner: the buttons move in beside it. */
 @media (orientation: portrait), (max-width: 760px) {
-  [data-view='drawing'] .sound-btn {
+  [data-view='drawing'] .top-right {
     right: calc(max(8px, env(safe-area-inset-right)) + 52px);
   }
+}
+
+/* ---------- help for grown-ups (DESIGN 8.1): only in voksentilstand ---------- */
+.adult-help {
+  pointer-events: auto;
+  position: absolute;
+  left: 50%;
+  bottom: calc(max(6px, env(safe-area-inset-bottom)) + 58px); /* clear of the lock in the corner */
+  transform: translateX(-50%);
+  width: min(440px, calc(100vw - 32px));
+  padding: 14px 18px 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #28406a;
+  font-size: 15px;
+  line-height: 1.35;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+.adult-help h2 {
+  margin: 6px 0 2px;
+  font-size: 16px;
+}
+.adult-help h2:first-child {
+  margin-top: 0;
+}
+.adult-help p {
+  margin: 0 0 4px;
 }

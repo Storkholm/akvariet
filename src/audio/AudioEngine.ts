@@ -1,5 +1,5 @@
 import { createRng, type Rng } from '../util/random';
-import { ambience, blip, bloop, bubbleSchedule, bubbles, crayonFrequency, pling, pop, swoosh, type AmbienceHandle } from './sounds';
+import { ambience, blip, bloop, bubbleSchedule, bubbles, COUNTDOWN_PLING, crayonFrequency, pling, pop, swoosh, type AmbienceHandle } from './sounds';
 
 const STORAGE_KEY = 'akvariet.muted';
 
@@ -102,6 +102,11 @@ export class AudioEngine {
   /** "Slip løs". */
   release(): void {
     this.play('swoosh', (c, out, t) => swoosh(c, out, t, this.rng));
+  }
+
+  /** One number of the "Slip løs" countdown (3, 2, 1): a soft, rising tone. */
+  countdown(n: number): void {
+    this.play('countdown', (c, out, t) => pling(c, out, t, crayonFrequency(7 + (3 - n) * 2), COUNTDOWN_PLING));
   }
 
   /** A species bubble pops. */

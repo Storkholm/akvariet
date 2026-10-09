@@ -8,6 +8,7 @@ import type { Species } from './species';
 import { AudioEngine } from './audio/AudioEngine';
 import { AdultMode } from './ui/AdultMode';
 import { DrawingPanel } from './ui/DrawingPanel';
+import { FullscreenButton } from './ui/FullscreenButton';
 import { SoundButton } from './ui/SoundButton';
 import { SpeciesPicker } from './ui/SpeciesPicker';
 
@@ -21,6 +22,7 @@ export class App {
   readonly adult: AdultMode;
   readonly audio = new AudioEngine();
   readonly soundButton: SoundButton;
+  readonly fullscreenButton = new FullscreenButton();
   readonly keeper = new CreatureKeeper(createCreatureStore());
   /** The last creature released; also handy for tests. */
   lastRelease: { drawing: Drawing; species: Species; creature: Creature } | null = null;
@@ -34,7 +36,10 @@ export class App {
     this.soundButton = new SoundButton(this.audio);
     const ui = document.createElement('div');
     ui.className = 'ui';
-    ui.append(this.picker.element, this.panel.element, this.adult.element, this.soundButton.element);
+    const corner = document.createElement('div');
+    corner.className = 'top-right';
+    corner.append(this.fullscreenButton.element, this.soundButton.element);
+    ui.append(this.picker.element, this.panel.element, this.adult.element, corner);
     document.documentElement.dataset.view = 'aquarium';
     // Browsers only allow sound after a first tap: any tap or key press wakes the sound up.
     for (const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, () => this.audio.unlock(), { capture: true });
@@ -55,6 +60,7 @@ export class App {
     this.panel.onHome = () => this.backToPicker();
     this.panel.onRelease = (drawing, species) => this.release(drawing, species);
     this.panel.onCrayon = (i) => this.audio.crayon(i);
+    this.panel.onCountdown = (n) => this.audio.countdown(n);
 
     // Adult mode: the picker steps aside, and tapping a creature offers to delete it.
     this.adult.onChange = (on) => (on ? this.picker.hide() : this.picker.show());

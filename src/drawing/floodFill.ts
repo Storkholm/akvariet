@@ -5,6 +5,10 @@ export interface Rect {
   h: number;
 }
 
+export type Rgb = readonly [number, number, number];
+/** A fill colour that depends on the row: used by the rainbow bucket (bands across the region's height). */
+export type RowColor = (y: number, minY: number, maxY: number) => Rgb;
+
 export interface FillOptions {
   /** Max per-channel difference still counted as "the same colour". */
   tolerance: number;
@@ -35,7 +39,7 @@ export function floodFill(
   height: number,
   sx: number,
   sy: number,
-  rgb: readonly [number, number, number],
+  rgb: Rgb | RowColor,
   mask: Uint8Array,
   opts: FillOptions,
 ): Rect | null {
@@ -118,14 +122,15 @@ export function floodFill(
   const rx0 = Math.max(0, minX - 1), ry0 = Math.max(0, minY - 1);
   const rx1 = Math.min(width - 1, maxX + 1), ry1 = Math.min(height - 1, maxY + 1);
   for (let y = ry0; y <= ry1; y++) {
+    const color = typeof rgb === 'function' ? rgb(y, minY, maxY) : rgb;
     for (let x = rx0; x <= rx1; x++) {
       const p = y * width + x;
       if (!filled[p]) continue;
       const k = opts.grain ? 1 + grainNoise(x, y) * 0.04 : 1;
       const i = p * 4;
-      data[i] = Math.min(255, rgb[0] * k);
-      data[i + 1] = Math.min(255, rgb[1] * k);
-      data[i + 2] = Math.min(255, rgb[2] * k);
+      data[i] = Math.min(255, color[0] * k);
+      data[i + 1] = Math.min(255, color[1] * k);
+      data[i + 2] = Math.min(255, color[2] * k);
       data[i + 3] = 255;
     }
   }
