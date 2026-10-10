@@ -54,7 +54,7 @@ export async function templateToScreen(canvasWrap: Locator): Promise<(x: number,
   return (x, y) => [box.x + x * box.width, box.y + y * box.height];
 }
 
-export async function openPanel(page: import('@playwright/test').Page, species: 'Rokke' | 'Skildpadde' = 'Rokke'): Promise<void> {
+export async function openPanel(page: import('@playwright/test').Page, species: 'Rokke' | 'Skildpadde' | 'Søstjerne' | 'Søpindsvin' | 'Søpølse' = 'Rokke'): Promise<void> {
   // The bubble floats and pops, so it is never "stable" for Playwright; the click is a real tap on its button.
   await page.getByRole('button', { name: species }).click({ force: true });
   await page.locator('.panel.open').waitFor();
@@ -325,7 +325,7 @@ export async function rigState(page: import('@playwright/test').Page): Promise<R
 }
 
 /** Puts a swimming creature at a known place in the water and returns its id. */
-export async function spawnAt(page: import('@playwright/test').Page, pos: [number, number, number], species: 'ray' | 'turtle' = 'ray'): Promise<string> {
+export async function spawnAt(page: import('@playwright/test').Page, pos: [number, number, number], species: 'ray' | 'turtle' | 'starfish' | 'seaUrchin' | 'seaCucumber' = 'ray'): Promise<string> {
   return page.evaluate(
     ([p, sp]) => {
       const w = window as unknown as { aquarium: { creatures: { spawn(c: HTMLCanvasElement, s: string, p: unknown, yaw: number): { id: string } } } };

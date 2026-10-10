@@ -2,7 +2,7 @@ import type { PickerBubbles } from '../aquarium/PickerBubbles';
 import type { Species } from '../species';
 import { h } from './dom';
 
-const LABELS: Record<Species, string> = { ray: 'Rokke', turtle: 'Skildpadde' };
+const LABELS: Record<Species, string> = { ray: 'Rokke', turtle: 'Skildpadde', starfish: 'Søstjerne', seaUrchin: 'Søpindsvin', seaCucumber: 'Søpølse' };
 
 /** A swipe only counts after this many pixels, so a tap on a bubble is never taken for a swipe (ADR 0006). */
 const SWIPE_THRESHOLD_PX = 10;

@@ -49,9 +49,10 @@ describe('ray template', () => {
     expect(new Set(signs).size).toBe(1);
   });
 
-  it('every species has a template, and the picker lists both', () => {
-    expect(Object.keys(TEMPLATES).sort()).toEqual(['ray', 'turtle']);
-    expect([...SPECIES].sort()).toEqual(['ray', 'turtle']);
+  it('every species has a template, and the picker lists them all', () => {
+    const all = ['ray', 'seaCucumber', 'seaUrchin', 'starfish', 'turtle'];
+    expect(Object.keys(TEMPLATES).sort()).toEqual(all);
+    expect([...SPECIES].sort()).toEqual(all);
     expect(getTemplate('turtle').species).toBe('turtle');
   });
 });

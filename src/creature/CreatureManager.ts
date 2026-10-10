@@ -6,6 +6,7 @@ import { Creature } from './Creature';
 import { MAX_CREATURES, planFarewells } from './limits';
 import type { SwimBounds } from './swimmer';
 import { Transition, type ViewRect } from './Transition';
+import { terrainHeight } from '../aquarium/terrain';
 import { splitBody, type Fragment } from '../samurai/Fragment';
 import { segmentHitsPolygon, type P2 } from '../samurai/slashGeometry';
 
@@ -73,7 +74,7 @@ export class CreatureManager {
   ): Creature {
     const template = getTemplate(species);
     const creature = new Creature(template, this.body(species), drawing, undefined, this.maxAnisotropy);
-    creature.transition = new Transition(template, this.camera, viewport, rect, this.bounds, createRng((Math.random() * 2 ** 32) >>> 0));
+    creature.transition = new Transition(template, this.camera, viewport, rect, this.bounds, createRng((Math.random() * 2 ** 32) >>> 0), !!template.swim.crawl);
     creature.transition.update(0, creature.group); // pose it before the first rendered frame
     this.add(creature);
     return creature;
@@ -85,8 +86,11 @@ export class CreatureManager {
     const creature = new Creature(template, this.body(species), drawing, undefined, this.maxAnisotropy, meta);
     const r = creature.rng;
     const { min, max } = this.bounds;
+    const crawl = !!template.swim.crawl;
+    const x = r.range(min[0] + 2, max[0] - 2);
+    const z = crawl ? r.range(Math.max(min[2] + 2, -4), Math.min(max[2] - 2, 8)) : r.range(min[2] + 2, max[2] - 2);
     creature.startSwimming(
-      pos ?? [r.range(min[0] + 2, max[0] - 2), r.range(5, max[1] - 1), r.range(min[2] + 2, max[2] - 2)],
+      pos ?? [x, crawl ? terrainHeight(x, z) + 0.1 : r.range(5, max[1] - 1), z],
       yaw ?? r.range(0, Math.PI * 2),
       0,
       creature.template.swim.cruiseSpeed[0],
@@ -118,6 +122,11 @@ export class CreatureManager {
     // With a wide aquarium the nearest edge is the nearest edge of the *picture*, not of the aquarium.
     for (const c of leaving) c.beginFarewell(c.group.position.x >= this.camera.position.x ? 1 : -1);
     return leaving;
+  }
+
+  /** CONTEXT: Ruden – called once the camera is in place for this frame: starfish on the glass are laid in front of the lens. */
+  updateGlass(dt: number, followed: Creature | null): void {
+    for (const c of this.creatures) if (c.glass) c.stepGlass(dt, this.camera, c !== followed);
   }
 
   /** The creature under a screen point (normalised device coordinates −1…1), or null. Creatures leaving are ignored. */
@@ -203,8 +212,10 @@ export class CreatureManager {
   }
 
   update(dt: number): void {
-    const swimmers = this.creatures.flatMap((c) => (c.swimmer ? [c.swimmer] : []));
-    for (const c of this.creatures) c.update(dt, swimmers, this.bounds);
+    // Swimmers dodge swimmers, bottom dwellers (CONTEXT: Bunddyr) dodge each other.
+    const swimmers = this.creatures.flatMap((c) => (c.swimmer && !c.template.swim.crawl ? [c.swimmer] : []));
+    const crawlers = this.creatures.flatMap((c) => (c.swimmer && c.template.swim.crawl ? [c.swimmer] : []));
+    for (const c of this.creatures) c.update(dt, c.template.swim.crawl ? crawlers : swimmers, this.bounds);
     // A creature that has said goodbye is removed once it is out of the picture.
     for (const c of [...this.creatures]) {
       if (!c.leaving) continue;

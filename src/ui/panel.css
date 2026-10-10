@@ -392,10 +392,12 @@
   }
 }
 
-/* ---------- portrait / narrow: crayons lie in a compact 3×5 tray above the tools ---------- */
+/* ---------- portrait / narrow: crayons lie in a compact 2-row tray above the tools ---------- */
 @media (orientation: portrait), (max-width: 760px) {
   .panel {
-    --cw: min(52px, calc((100vw - 24px) / 5));
+    --cw: 48px;
+    /* 15 crayons in 2 rows of 8 + 7: on narrow phones the 48 px crayons overlap a little instead of shrinking below 48 px. */
+    --pitch: min(var(--cw), calc((100vw - 16px - var(--cw)) / 7));
     --portrait-top: calc(max(8px, env(safe-area-inset-top)) + 48px);
   }
   /* Home (left) and undo (right) sit in the top corners; the figure never starts above the strip they use. */
@@ -454,7 +456,7 @@
   .crayons {
     position: static;
     display: grid;
-    grid-template-columns: repeat(5, var(--cw));
+    grid-template-columns: repeat(7, var(--pitch)) var(--cw);
     justify-content: center;
     gap: 6px 0;
     padding-top: 12px;

@@ -489,3 +489,10 @@ export function buildReef(seed = 7): Reef {
   };
   return { group, sand: buildSand(), chunks, cull };
 }
+
+/** Where corals and rocks grow (ellipses on the sand, a little smaller than the patches): the bottom dwellers walk around these; they do walk through grass. */
+export function reefObstacles(): Array<{ x: number; z: number; rx: number; rz: number }> {
+  return [...PATCHES, ...EXTRA_PATCHES]
+    .filter((p) => (p.branching ?? 0) + (p.domes ?? 0) + (p.tables ?? 0) + (p.rocks ?? 0) > 0)
+    .map((p) => ({ x: p.x, z: p.z, rx: p.rx * 0.72, rz: p.rz * 0.72 }));
+}

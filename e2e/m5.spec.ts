@@ -25,11 +25,12 @@ for (const [name, size] of SIZES) {
     await page.goto('/?still');
     await adv(page, 2.5);
     const areas = await page.evaluate(() => (window as unknown as W).aquarium.pickerBubbles.hitAreas());
-    expect(areas.map((a) => a.species).sort()).toEqual(['ray', 'turtle']);
+    expect(areas.map((a) => a.species).sort()).toEqual(['ray', 'seaCucumber', 'seaUrchin', 'starfish', 'turtle']);
 
     // DESIGN 8.3: ~3 bubbles fit on a tablet (so both are whole); on an upright phone it is 1½, so the second one peeks in.
     const upright = size.height > size.width * 1.05;
-    for (const a of areas) {
+    // (The first two are in view at the start; the others wait further along the row.)
+    for (const a of areas.slice(0, 2)) {
       // Whole bubble on screen, big enough to tap easily.
       if (!upright || a.species === areas[0].species) {
         expect(a.x - a.r, `${a.species} left`).toBeGreaterThanOrEqual(0);
@@ -51,6 +52,7 @@ for (const [name, size] of SIZES) {
     }
     // The two bubbles never overlap.
     const [a, b] = areas;
+    expect(areas.map((x) => x.species).slice(0, 2)).toEqual(['ray', 'turtle']);
     expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(a.r + b.r);
 
     await page.screenshot({ path: `docs/screenshots/M5-${name}-1-vaelger.png` });

@@ -166,15 +166,29 @@ test.describe('M13: hug og stykker', () => {
     expect(await fragments(page)).toBe(2);
     // Pieces can be cut again – and again (ADR 0011) – but never beyond the ceiling.
     await adv(page, 1.5);
-    const f = await page.evaluate(() => (window as unknown as W).aquarium.fragments.list[0].position);
-    expect(f).toBeTruthy();
-    await page.evaluate(([x, y]) => {
-      const a = (window as unknown as { aquarium: { slash(a: number[], b: number[]): unknown[]; beginSwipe(): void } }).aquarium;
-      for (let i = 0; i < 20; i++) {
-        a.beginSwipe();
-        a.slash([x - 600, y - 300 + i * 30], [x + 600, y - 300 + i * 30 + 40]);
+    // Swipes straight through where the pieces lie now (found on the screen), two rounds, a new swipe each time.
+    await page.evaluate(() => {
+      type A = {
+        slash(a: number[], b: number[]): unknown[];
+        beginSwipe(): void;
+        camera: { updateMatrixWorld(): void };
+        viewport: { width: number; height: number };
+        fragments: { list: Array<{ position: { clone(): { project(c: unknown): { x: number; y: number } } } }> };
+      };
+      const a = (window as unknown as { aquarium: A }).aquarium;
+      for (let round = 0; round < 2; round++) {
+        a.camera.updateMatrixWorld();
+        const { width, height } = a.viewport;
+        const spots = a.fragments.list.map((f) => {
+          const n = f.position.clone().project(a.camera);
+          return [(n.x * 0.5 + 0.5) * width, (-n.y * 0.5 + 0.5) * height];
+        });
+        for (const [x, y] of spots) {
+          a.beginSwipe();
+          a.slash([x - 80, y - 25], [x + 80, y + 25]);
+        }
       }
-    }, [p.x, p.y]);
+    });
     expect(await fragments(page)).toBeGreaterThan(4);
     expect(await fragments(page)).toBeLessThanOrEqual(40);
     await adv(page, 0.3);

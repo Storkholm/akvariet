@@ -1,7 +1,7 @@
 import type { Vec2 } from '../drawing/geometry';
 
 /** CONTEXT: Art. */
-export type Species = 'ray' | 'turtle';
+export type Species = 'ray' | 'turtle' | 'starfish' | 'seaUrchin' | 'seaCucumber';
 
 /** How a part is inflated into 3D (ADR 0001): thick in the middle, thin towards the edge. */
 export interface PartBody {
@@ -30,7 +30,7 @@ export interface Part {
 /** Swimming style parameters (the wave itself runs in the vertex shader). */
 export interface SwimParams {
   /** Which wave runs in the vertex shader (see `patchWater`). */
-  style: 'ray' | 'turtle';
+  style: 'ray' | 'turtle' | 'starfish' | 'urchin' | 'cucumber';
   /** Cruise speed range in world units per second. */
   cruiseSpeed: [number, number];
   /** Max turn rate in radians per second. */
@@ -41,6 +41,10 @@ export interface SwimParams {
   wingAmp: number;
   /** Ray: sideways swing of the tail tip as a fraction of the body size. Turtle: steering angle of the back flippers in radians. */
   tailAmp: number;
+  /** CONTEXT: Bunddyr – crawls on the sand instead of swimming (it settles on the bottom after "Slip løs"). */
+  crawl?: boolean;
+  /** From time to time the creature crawls up the glass in front of the picture (starfish). */
+  glass?: boolean;
 }
 
 /** CONTEXT: Skabelon – the species' outline seen from above. */

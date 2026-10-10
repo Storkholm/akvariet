@@ -22,7 +22,17 @@ for (const [name, size] of [['tablet', TABLET], ['phone', PHONE]] as const) {
       return { calls: r.calls, triangles: r.triangles };
     });
     console.log(`M1 ${name}: ${info.calls} draw calls, ${info.triangles} triangles`);
-    expect(info.calls).toBeLessThan(40);
+    // The species bubbles (M12: five of them, a few in view) are a few draw calls each; the aquarium itself stays under 40.
+    expect(info.calls).toBeLessThan(56);
+    await page.getByRole('button', { name: 'Kig' }).click();
+    // (Simulated by hand: a slow software renderer would otherwise not get the fold animation done in time.)
+    const bare = await page.evaluate(() => {
+      const a = (window as unknown as { aquarium: { advance(s: number): void; renderer: { info: { render: { calls: number } } } } }).aquarium;
+      a.advance(3);
+      return a.renderer.info.render.calls;
+    });
+    console.log(`M1 ${name}: ${bare} draw calls without the bubbles`);
+    expect(bare).toBeLessThan(40);
     expect(errors).toEqual([]);
     await ctx.close();
   });

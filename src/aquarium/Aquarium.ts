@@ -169,6 +169,7 @@ export class Aquarium {
 
   /** CONTEXT: Følg – the camera follows this creature (double tap), or stops following with null. */
   follow(creature: Creature | null): void {
+    if (creature?.glass?.onGlass) return; // it is stuck to the glass in front of the lens: nothing to follow
     if (this.followed && this.followed !== creature) this.followed.setFullDetail(false);
     this.followed = creature;
     creature?.setFullDetail(true);
@@ -287,6 +288,8 @@ export class Aquarium {
     this.rays.update(this.elapsed);
     this.particles.update(dt, this.elapsed);
     this.placeCamera();
+    this.camera.updateMatrixWorld();
+    this.creatures.updateGlass(dt, this.followed);
     this.pickerBubbles.update(dt, this.elapsed);
     this.bursts.update(dt, this.elapsed);
     // ADR 0006: what is outside the picture is not drawn.
