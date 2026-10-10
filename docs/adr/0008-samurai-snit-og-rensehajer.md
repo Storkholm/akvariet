@@ -15,5 +15,5 @@ Samurai-mode er en sjov måde at gøre plads i akvariet på: man hugger dyr over
 
 ## Konsekvenser
 - Samurai-mode er en legende sletning, som børn selv kan bruge; voksentilstandens sletning består.
-- Kun ét snit pr. dyr i v2 (stykker kan ikke hugges igen).
+- ~~Kun ét snit pr. dyr i v2~~ – ændret af [ADR 0011](0011-stykker-kan-hugges-igen.md): stykker kan hugges igen.
 - Kameraets én-finger-træk er slået fra i samurai-mode (swipe = hug); knib-zoom virker stadig.

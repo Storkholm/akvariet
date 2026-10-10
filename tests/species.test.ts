@@ -119,12 +119,13 @@ describe('turtle template', () => {
 });
 
 describe('crayons', () => {
-  it('has 14 distinct crayons: grey between brown and black, the rainbow last', () => {
-    expect(CRAYONS).toHaveLength(14);
-    expect(new Set(CRAYONS.map((c) => c.id)).size).toBe(14);
+  it('has 15 distinct crayons: grey between brown and black, white before the rainbow, the rainbow last', () => {
+    expect(CRAYONS).toHaveLength(15);
+    expect(new Set(CRAYONS.map((c) => c.id)).size).toBe(15);
     const ids = CRAYONS.map((c) => c.id);
     expect(ids.indexOf('grey')).toBe(ids.indexOf('brown') + 1);
     expect(ids.indexOf('black')).toBe(ids.indexOf('grey') + 1);
+    expect(ids.indexOf('white')).toBe(ids.indexOf('black') + 1);
     expect(ids.at(-1)).toBe('rainbow');
     expect(CRAYONS.filter((c) => c.rainbow)).toHaveLength(1);
   });

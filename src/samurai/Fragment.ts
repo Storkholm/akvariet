@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { terrainHeight } from '../aquarium/terrain';
 import { createCreatureShader } from '../creature/material';
 import type { Template } from '../species/types';
+import { pointInPolygon, type P2 } from './slashGeometry';
 
 /** What the two pieces of one cut creature share (and dispose together). */
 export interface SharedBody {
@@ -30,10 +31,13 @@ export class Fragment {
   state: FragmentState = 'falling';
   /** A shark is on its way to this piece. */
   claimed = false;
+  /** The swipe that made this piece: that same swipe does not cut it again (it is made of many small segments). */
+  swipe = 0;
   readonly velocity = new THREE.Vector3();
   private readonly spin = new THREE.Vector3();
-  private readonly localPlane: THREE.Plane;
-  private readonly plane: THREE.Plane;
+  /** Every cut this piece has come out of, as world planes (the piece is what lies on the positive side of all of them). */
+  private readonly planes: THREE.Plane[] = [];
+  private readonly localPlanes: THREE.Plane[] = [];
   private readonly material: THREE.MeshLambertMaterial;
   private eatenFor = 0;
   private landed = 0;
@@ -44,14 +48,17 @@ export class Fragment {
     private readonly shared: SharedBody,
     worldPlane: THREE.Plane,
     from: { group: THREE.Group; mesh: THREE.Object3D },
-    uniforms: { phase: number; flap: number; turn: number },
+    private readonly uniforms: { phase: number; flap: number; turn: number },
     /** +1: the half on the positive side of the plane; −1: the other half. */
     readonly side: 1 | -1,
     rng: () => number,
+    /** The cuts the piece being cut had already been through (a piece may be cut again and again). */
+    earlier: readonly THREE.Plane[] = [],
   ) {
     shared.refs++;
-    this.plane = worldPlane.clone();
-    if (side < 0) this.plane.negate();
+    const plane = worldPlane.clone();
+    if (side < 0) plane.negate();
+    this.planes.push(...earlier.map((e) => e.clone()), plane);
     this.group.position.copy(from.group.position);
     this.group.quaternion.copy(from.group.quaternion);
     this.group.scale.copy(from.group.scale);
@@ -59,7 +66,7 @@ export class Fragment {
       shared.template,
       shared.texture,
       { uPhase: { value: uniforms.phase }, uFlap: { value: uniforms.flap }, uTurn: { value: uniforms.turn } },
-      { plane: this.plane },
+      { planes: this.planes },
     );
     this.mesh = new THREE.Mesh(shared.geometry, this.material);
     this.mesh.frustumCulled = false;
@@ -67,10 +74,11 @@ export class Fragment {
     this.group.add(this.mesh);
     this.group.updateMatrixWorld(true);
     // The plane is fixed to the body, not to the world: it moves and turns with the piece.
-    this.localPlane = this.plane.clone().applyMatrix4(new THREE.Matrix4().copy(this.mesh.matrixWorld).invert());
+    const inverse = new THREE.Matrix4().copy(this.mesh.matrixWorld).invert();
+    for (const p of this.planes) this.localPlanes.push(p.clone().applyMatrix4(inverse));
 
     // Pushed away from the other half (sideways in the water), with a small turn that makes it tumble.
-    const away = new THREE.Vector3().copy(this.plane.normal);
+    const away = new THREE.Vector3().copy(plane.normal);
     away.y *= 0.3;
     if (away.lengthSq() < 1e-6) away.set(side, 0, 0);
     away.normalize();
@@ -133,12 +141,62 @@ export class Fragment {
       }
     }
     g.updateMatrixWorld(true);
-    this.plane.copy(this.localPlane).applyMatrix4(this.mesh.matrixWorld);
+    for (let i = 0; i < this.planes.length; i++) this.planes[i].copy(this.localPlanes[i]).applyMatrix4(this.mesh.matrixWorld);
+  }
+
+  /**
+   * Cuts this piece in two along `plane` (world space): two new pieces take its place, each keeping all the earlier cuts. The caller
+   * removes this piece (without eating it).
+   */
+  splitAlong(plane: THREE.Plane, rng: () => number): [Fragment, Fragment] {
+    this.group.updateMatrixWorld(true);
+    const from = { group: this.group, mesh: this.mesh };
+    const u = { phase: this.uniforms.phase, flap: this.uniforms.flap, turn: this.uniforms.turn };
+    return [
+      new Fragment(this.shared, plane, from, u, 1, rng, this.planes),
+      new Fragment(this.shared, plane, from, u, -1, rng, this.planes),
+    ];
+  }
+
+  /**
+   * Does the swipe `a`→`b` (pixels) cut through what is left of this piece? Points along the swipe are tested against the outline of the
+   * body and against the earlier cuts, so the part that has been cut away cannot be hit.
+   */
+  crossedBy(a: P2, b: P2, camera: THREE.PerspectiveCamera, viewport: { width: number; height: number }): boolean {
+    if (!this.edible) return false;
+    this.group.updateMatrixWorld(true);
+    camera.updateMatrixWorld();
+    const { size, center } = this.shared.template;
+    const m = this.mesh.matrixWorld;
+    const v = new THREE.Vector3();
+    const polys = this.shared.template.parts.map((part) =>
+      part.outline.map(([u, w]) => {
+        const p = v.set((u - center[0]) * size, 0, (w - center[1]) * size).applyMatrix4(m).project(camera);
+        return [(p.x * 0.5 + 0.5) * viewport.width, (-p.y * 0.5 + 0.5) * viewport.height] as P2;
+      }),
+    );
+    // The body's own plane (local y = 0) in the world.
+    const origin = new THREE.Vector3().setFromMatrixPosition(m);
+    const normal = new THREE.Vector3(0, 1, 0).transformDirection(m);
+    const bodyPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, origin);
+    const ray = new THREE.Raycaster();
+    const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const steps = Math.max(2, Math.min(240, Math.ceil(length / 5)));
+    const hit = new THREE.Vector3();
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const pt: P2 = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      if (!polys.some((poly) => pointInPolygon(pt, poly))) continue;
+      ray.setFromCamera(new THREE.Vector2((pt[0] / viewport.width) * 2 - 1, -(pt[1] / viewport.height) * 2 + 1), camera);
+      if (!ray.ray.intersectPlane(bodyPlane, hit)) continue;
+      if (this.planes.every((p) => p.distanceToPoint(hit) >= 0)) return true;
+    }
+    return false;
   }
 
   /** The world-space plane that clips this piece (for tests). */
   get clipPlane(): THREE.Plane {
-    return this.plane;
+    return this.planes[this.planes.length - 1];
   }
 
   dispose(): void {

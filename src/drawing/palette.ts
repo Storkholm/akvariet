@@ -1,4 +1,4 @@
-/** CONTEXT: Farveblyant – the 14 crayons in tray order (DESIGN 3.2, 8.1). Names are UI text (Danish). */
+/** CONTEXT: Farveblyant – the 15 crayons in tray order (DESIGN 3.2, 8.1). Names are UI text (Danish). */
 export interface CrayonDef {
   id: string;
   name: string;
@@ -24,6 +24,7 @@ export const CRAYONS: readonly CrayonDef[] = [
   { id: 'brown', name: 'Brun', hex: '#8a5530' },
   { id: 'grey', name: 'Grå', hex: '#8d9096' },
   { id: 'black', name: 'Sort', hex: '#222226' },
+  { id: 'white', name: 'Hvid', hex: '#ffffff' },
   { id: 'rainbow', name: 'Regnbue', hex: '#e8332a', rainbow: true },
 ];
 

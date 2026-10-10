@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { pickSample } from '../src/audio/AudioEngine';
 import { buildBody } from '../src/body/buildBody';
 import { CleanupSharks, KEEP_AWAY, SHARK_COUNT, type Living } from '../src/samurai/CleanupSharks';
@@ -170,6 +170,23 @@ describe('Fragment', () => {
     const { pair } = pieces();
     const [a, b] = pair;
     expect(a.clipPlane.normal.dot(b.clipPlane.normal)).toBeCloseTo(-1, 5);
+  });
+
+  it('a piece can be cut again: the halves keep every earlier cut, and the texture lives until the last one is gone', () => {
+    const { pair, texture } = pieces();
+    const spy = vi.spyOn(texture, 'dispose');
+    const [a, b] = pair;
+    const rng = createRng(9);
+    const [c, d] = a.splitAlong(new THREE.Plane(new THREE.Vector3(0, 0, 1), -6), () => rng.next());
+    a.dispose();
+    expect(spy).not.toHaveBeenCalled();
+    expect(c.side).toBe(1);
+    expect(d.side).toBe(-1);
+    expect(c.clipPlane.normal.dot(d.clipPlane.normal)).toBeCloseTo(-1, 5);
+    const [e, f] = c.splitAlong(new THREE.Plane(new THREE.Vector3(0, 1, 0), -6), () => rng.next());
+    c.dispose();
+    for (const p of [b, d, e, f]) p.dispose();
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 
   it('the clip plane moves with the piece: a point that was on the cut stays on it', () => {

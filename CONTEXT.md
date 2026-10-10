@@ -18,7 +18,7 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Følg** | `follow()` | Dobbelttryk på et dyr: kameraet følger det, og navneskiltet vises. |
 | **Boble** | `PickerBubbles` | Den gennemsigtige kugle med et ufarvet dyr i (3D), som artsvælgeren består af. Tryk på den, så popper den, og tegnefladen kommer frem. |
 | **Tegnefladen** | `DrawingPanel` | Visningen hvor skabelonen ligger stort og kan farvelægges. Ligger oven på akvariet, som kører dæmpet bagved. |
-| **Farveblyant** | `Crayon` | Én af de 14 farver i bakken nederst til venstre (v2: + grå og regnbue). Den valgte blyant stikker længere frem end de andre. |
+| **Farveblyant** | `Crayon` | Én af de 15 farver i bakken nederst til venstre (v2: + grå, hvid og regnbue). Den valgte blyant stikker længere frem end de andre. |
 | **Regnbueblyant** | `rainbow` | Blyant hvis farve løber gennem regnbuen langs stregen. |
 | **Bakkeside** | `TrayPage` | Bakken har to sider – blyanter og mønstre – som man skifter mellem med swipe eller små faner. |
 | **Stempel** | `Stamp` | En figur (stjerne, hjerte …) der sættes med ét tryk i den valgte farve. |
@@ -47,11 +47,11 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Loft** | `MAX_CREATURES` | Højst 30 dyr svømmer i akvariet. Ved nr. 31 tager det ældste dyr afsked. |
 | **Dyrelager** | `CreatureStore` | Stedet på enheden (IndexedDB) hvor dyrene gemmes mellem besøg. Kun det barnet har tegnet gemmes: art, tegning (v2: 1024×1024 PNG), navn og oprettelsestidspunkt. ADR 0009. |
 | **Afsked** | `farewell()` | Når akvariet er fuldt og et nyt dyr kommer ind, svømmer det ældste dyr ud af billedet og slettes. |
-| **Lyd** | `AudioEngine` | Alle lyde, lavet med Web Audio i koden (ingen lydfiler): en blød tone pr. farveblyant (14 toner i en pentatonisk skala fra A3) og en tone pr. tal i nedtællingen, svup ved Slip løs, pop ved boblen, bobler ved glædeshop, bloop ved sletning og en svag underlig brummen i vandet. Starter først efter første tryk; lydknappen (højttaler, øverst til højre) slår det fra, og valget huskes. |
+| **Lyd** | `AudioEngine` | Alle lyde, lavet med Web Audio i koden (ingen lydfiler): en blød tone pr. farveblyant (15 toner i en pentatonisk skala fra A3) og en tone pr. tal i nedtællingen, svup ved Slip løs, pop ved boblen, bobler ved glædeshop, bloop ved sletning og en svag underlig brummen i vandet. Starter først efter første tryk; lydknappen (højttaler, øverst til højre) slår det fra, og valget huskes. |
 | **Voksentilstand** | `AdultMode` | Skjult tilstand (hold låse-ikonet nede i 3 sek.), hvor man kan slette enkelte dyr og få hjælp til fuldskærm. Er aldrig tændt samtidig med samurai-mode. |
 | **Samurai-mode** | `SamuraiMode` | Tilstand (hold sværd-knappen i 2 sek.), hvor swipe er sværdhug. ADR 0008. |
 | **Hug** | `slash()` | Ét sværdhug: et lysende spor; dyr det krydser, deles i to stykker og slettes. |
-| **Stykke** | `Fragment` | En halvdel af et hugget dyr. Synker til bunds; gemmes aldrig. |
+| **Stykke** | `Fragment` | En del af et hugget dyr. Synker til bunds; gemmes aldrig. Kan hugges igen og igen (ADR 0011; højst 40 ad gangen). |
 | **Rensehajer** | `CleanupSharks` | Grå baggrundshajer, der kommer efter 3 hug og spiser stykkerne. Rører aldrig levende dyr. Ikke det samme som arten **haj**. |
 | **Brøl** | `Kiai` | Familiens indtalte samurai-brøl (lydfiler `kiai-1…4.mp3`, ADR 0007). |
 | **Nam** | `nam()` | Lyden, når en rensehaj bider et stykke: familiens optagelser (`haj-1…4.mp3`, ADR 0010), ellers en lille lyd lavet i kode. |

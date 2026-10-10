@@ -101,13 +101,15 @@ export class App {
         if (this.samurai.session.sharksDueAtEnd(this.aquarium.sharks.active, this.aquarium.fragments.count)) this.summonSharks();
       }
     };
+    this.samurai.onSwipeStart = () => this.aquarium.beginSwipe();
     this.samurai.onSlash = (a, b, from) => {
       const cut = this.aquarium.slash(a, b, from);
-      if (cut.length === 0) return 0;
+      const pieces = this.aquarium.piecesCut;
+      if (cut.length === 0 && pieces === 0) return 0;
       this.audio.slash();
       // The cut creatures are gone for good, also from the saved ones (their pieces are never saved).
       for (const c of cut) void this.keeper.delete(c.id);
-      return cut.length;
+      return cut.length + pieces;
     };
     // (SamuraiMode counts the cut creatures; when three have been cut, the sharks are due.)
     this.samurai.onCounted = () => {
