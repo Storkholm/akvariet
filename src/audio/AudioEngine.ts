@@ -1,5 +1,5 @@
 import { createRng, type Rng } from '../util/random';
-import { ambience, blip, bloop, bubbleSchedule, bubbles, crayonFrequency, pling, pop, swoosh, type AmbienceHandle } from './sounds';
+import { ambience, blip, bloop, bubbleSchedule, bubbles, COUNTDOWN_PLING, crayonFrequency, cutPing, gong, nam, pling, pop, swoosh, type AmbienceHandle } from './sounds';
 
 const STORAGE_KEY = 'akvariet.muted';
 
@@ -25,6 +25,15 @@ export const browserAudioEnv: AudioEnv = {
   random: Math.random,
 };
 
+/** Which recording next: any of `count`, but not `last` again (when there is a choice). Pure, so it can be tested. */
+export function pickSample(count: number, last: number, random: () => number): number {
+  if (count <= 1) return 0;
+  if (last < 0 || last >= count) return Math.min(count - 1, Math.floor(random() * count));
+  let i = Math.min(count - 2, Math.floor(random() * (count - 1)));
+  if (i >= last) i++;
+  return i;
+}
+
 /**
  * CONTEXT: Lyd (DESIGN 3.6). All sounds are generated with Web Audio. Browsers only allow sound after the first tap, so
  * nothing starts before `unlock()`; until then every call is silently ignored. One master gain handles mute and a gentle
@@ -37,6 +46,9 @@ export class AudioEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private amb: AmbienceHandle | null = null;
+  private readonly samples = new Map<string, AudioBuffer[]>();
+  private readonly lastSample = new Map<string, number>();
+  private readonly sampleEnds = new Map<string, number>();
   private blipTimer: number | undefined;
   private readonly rng: Rng;
   onMutedChange?: (muted: boolean) => void;
@@ -102,6 +114,79 @@ export class AudioEngine {
   /** "Slip løs". */
   release(): void {
     this.play('swoosh', (c, out, t) => swoosh(c, out, t, this.rng));
+  }
+
+  /** One number of the "Slip løs" countdown (3, 2, 1): a soft, rising tone. */
+  countdown(n: number): void {
+    this.play('countdown', (c, out, t) => pling(c, out, t, crayonFrequency(7 + (3 - n) * 2), COUNTDOWN_PLING));
+  }
+
+  /** Samurai mode begins (ADR 0008). */
+  gong(): void {
+    this.play('gong', (c, out, t) => gong(c, out, t));
+  }
+
+  /** A sword cut: the swoosh of the blade, the ping of the cut and – when there are recordings – a shout (ADR 0007). */
+  slash(): void {
+    this.play('swoosh', (c, out, t) => swoosh(c, out, t, this.rng));
+    this.play('cut', (c, out, t) => cutPing(c, out, t + 0.05));
+    this.playSample('kiai');
+  }
+
+  /** A cleanup shark bites a piece: a recorded "nam" if there is one, otherwise a soft chomp made in code. */
+  nam(): void {
+    // The recordings are a few seconds long: while one is still playing, further bites are silent (five sharks, one "nam").
+    if (!this.playSample('haj', true)) this.play('nam', (c, out, t) => nam(c, out, t));
+  }
+
+  /**
+   * Loads the family's recordings `<name>-1.mp3` … `<name>-4.mp3` from `public/sounds/` (ADR 0007). Files that are not there
+   * are simply skipped: the game works with any number of them, also none. Safe to call again.
+   */
+  async loadSamples(name: string, base = ''): Promise<number> {
+    if (!this.ctx) return 0;
+    const ctx = this.ctx;
+    const have = this.samples.get(name) ?? [];
+    if (this.samples.has(name)) return have.length;
+    this.samples.set(name, have);
+    for (let i = 1; i <= 4; i++) {
+      try {
+        const res = await fetch(`${base}sounds/${name}-${i}.mp3`);
+        if (!res.ok || !(res.headers.get('content-type') ?? '').includes('audio')) continue;
+        have.push(await ctx.decodeAudioData(await res.arrayBuffer()));
+      } catch {
+        /* missing or not decodable: skipped */
+      }
+    }
+    return have.length;
+  }
+
+  /** How many recordings of `name` are loaded (for tests). */
+  sampleCount(name: string): number {
+    return this.samples.get(name)?.length ?? 0;
+  }
+
+  /** Plays a random loaded recording of `name`, never the same one twice in a row. Returns false if there is none. */
+  playSample(name: string, onlyOneAtATime = false): boolean {
+    const list = this.samples.get(name);
+    if (!list || list.length === 0 || this.muted || !this.ctx || !this.master) return false;
+    const ctx = this.ctx;
+    if (onlyOneAtATime && ctx.currentTime < (this.sampleEnds.get(name) ?? 0)) return true;
+    const master = this.master;
+    this.safe(() => {
+      const pick = pickSample(list.length, this.lastSample.get(name) ?? -1, () => this.rng.next());
+      this.lastSample.set(name, pick);
+      const src = ctx.createBufferSource();
+      src.buffer = list[pick];
+      const g = ctx.createGain();
+      g.gain.value = 0.9;
+      src.connect(g).connect(master);
+      src.start();
+      this.sampleEnds.set(name, ctx.currentTime + src.buffer.duration);
+      this.played.push(`sample:${name}-${pick + 1}`);
+      if (this.played.length > 200) this.played.shift();
+    });
+    return true;
   }
 
   /** A species bubble pops. */

@@ -5,6 +5,20 @@ import { ICONS } from './icons';
 /** Seconds the lock must be held (DESIGN 3.5) – long enough that a child will not do it by accident. */
 export const HOLD_SECONDS = 3;
 
+/** Does the game already run as an installed app (home-screen icon)? Then the "put it on the home screen" help is moot. */
+export interface InstallEnv {
+  matchMedia(query: string): { matches: boolean };
+  navigator: object;
+}
+export function isInstalledApp(win: InstallEnv = window): boolean {
+  try {
+    if ((win.navigator as { standalone?: boolean }).standalone) return true; // iOS home-screen apps
+    return ['standalone', 'fullscreen', 'minimal-ui'].some((m) => win.matchMedia(`(display-mode: ${m})`).matches);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * CONTEXT: Voksentilstand. A small, discreet lock in a corner: hold it for 3 seconds and a visible frame appears.
  * While it is on, tapping a creature asks "Slet dette dyr?". Tapping the lock again leaves the mode.
@@ -20,12 +34,13 @@ export class AdultMode {
   private readonly lock: HTMLButtonElement;
   private readonly frame: HTMLElement;
   private readonly dialog: HTMLElement;
+  private readonly help: HTMLElement;
   private readonly thumb: HTMLCanvasElement;
   private holdTimer: number | undefined;
   private pending: Creature | null = null;
   private justActivated = false;
 
-  constructor(private readonly aquariumCanvas: HTMLElement) {
+  constructor() {
     const ring = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     ring.setAttribute('viewBox', '0 0 48 48');
     ring.classList.add('lock-ring');
@@ -38,7 +53,16 @@ export class AdultMode {
     this.dialog = h('div', { class: 'confirm adult-confirm', hidden: true }, [
       h('div', { class: 'confirm-box', role: 'dialog' }, [this.thumb, h('p', {}, ['Slet dette dyr?']), h('div', { class: 'confirm-actions' }, [no, yes])]),
     ]);
-    this.element = h('div', { class: 'adult' }, [this.frame, this.lock, this.dialog]);
+    // DESIGN 8.1: grown-up text is allowed here – how to install the game and how to keep a child inside it.
+    this.help = h('aside', { class: 'adult-help', hidden: true }, [
+      h('h2', {}, ['Læg spillet på hjemmeskærmen']),
+      h('p', {}, ['iPad/iPhone: tryk Del, og vælg Føj til hjemmeskærm.']),
+      h('p', {}, ['Android: åbn menuen, og vælg Installer app.']),
+      h('h2', {}, ['Lås barnet inde i spillet']),
+      h('p', {}, ['iPad/iPhone: slå Guidet adgang til (Indstillinger → Tilgængelighed).']),
+      h('p', {}, ['Android: brug Fastgør app (Indstillinger → Sikkerhed).']),
+    ]);
+    this.element = h('div', { class: 'adult' }, [this.frame, this.help, this.lock, this.dialog]);
 
     this.lock.addEventListener('pointerdown', this.onLockDown);
     for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) this.lock.addEventListener(ev, this.cancelHold);
@@ -54,7 +78,6 @@ export class AdultMode {
       this.closeDialog();
       if (c) this.onDelete?.(c);
     });
-    this.aquariumCanvas.addEventListener('pointerup', this.onCanvasTap);
   }
 
   /** The lock only shows where it makes sense (not while drawing or while a creature is being released). */
@@ -66,6 +89,7 @@ export class AdultMode {
   set(active: boolean): void {
     this.active = active;
     this.frame.hidden = !active;
+    this.help.hidden = !active || isInstalledApp();
     this.lock.classList.toggle('on', active);
     this.lock.replaceChildren(this.lock.querySelector('.lock-ring') as Node, svg(active ? ICONS.unlock : ICONS.lock));
     this.closeDialog();
@@ -90,10 +114,10 @@ export class AdultMode {
     this.lock.classList.remove('holding');
   };
 
-  private readonly onCanvasTap = (e: PointerEvent): void => {
+  /** A tap on the aquarium at this point (normalised device coordinates); App passes only real taps, never swipes. */
+  tap(ndcX: number, ndcY: number): void {
     if (!this.active || this.pending) return;
-    const r = this.aquariumCanvas.getBoundingClientRect();
-    const creature = this.onPick?.(((e.clientX - r.left) / r.width) * 2 - 1, -(((e.clientY - r.top) / r.height) * 2 - 1));
+    const creature = this.onPick?.(ndcX, ndcY);
     if (!creature) return;
     this.pending = creature;
     const ctx = this.thumb.getContext('2d');

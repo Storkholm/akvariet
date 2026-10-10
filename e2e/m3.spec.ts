@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { newTouchPage, openPanel, paintStripes, PHONE, pixelAt, registrationError, screenBox, TABLET } from './helpers';
+import { holdRelease, newTouchPage, openPanel, paintStripes, PHONE, pixelAt, registrationError, screenBox, TABLET } from './helpers';
 
 type Size = { width: number; height: number };
 
@@ -35,7 +35,9 @@ for (const [name, size] of [['tablet', TABLET], ['phone', PHONE]] as Array<[stri
 
     const timing = await page.evaluate(() => {
       const t0 = performance.now();
-      document.querySelector<HTMLButtonElement>('.release-btn')?.click();
+      // The held countdown (M7) ends in exactly this call; time the work it starts.
+      const panel = (window as unknown as { app: { panel: { currentDrawing: unknown; onRelease?: (d: unknown, s: string) => void } } }).app.panel;
+      panel.onRelease?.(panel.currentDrawing, 'ray');
       return performance.now() - t0;
     });
     // Making the body from a drawing must not hitch the transition (DESIGN 4.2: < ~100 ms).
@@ -86,7 +88,7 @@ test('M3: unfold, turn and swim away; the picker comes back (tablet)', async ({ 
   const { ctx, page, errors } = await newTouchPage(browser, TABLET);
   await page.goto('/?still');
   const rect = await drawAndRelease(page);
-  await page.getByRole('button', { name: 'Slip løs' }).click();
+  await holdRelease(page);
   const adv = (s: number) => page.evaluate((x) => (window as unknown as { aquarium: { advance(s: number): void } }).aquarium.advance(x), s);
   const mode = () => page.evaluate(() => (window as unknown as { app: { lastRelease: { creature: { mode: string } } } }).app.lastRelease.creature.mode);
   // Headless Chromium only moves CSS transitions on when frames are produced; poll until the layer has cleared away.
@@ -126,13 +128,13 @@ test('M3: unfold, turn and swim away; the picker comes back (tablet)', async ({ 
 });
 
 for (const [name, size] of [['tablet', TABLET], ['phone', PHONE]] as Array<[string, Size]>) {
-  test(`M3: several creatures swim around and stay in view (${name})`, async ({ browser }) => {
+  test(`M3: several creatures swim around and stay in the aquarium (${name})`, async ({ browser }) => {
     const { ctx, page, errors } = await newTouchPage(browser, size);
     await page.goto('/?still');
     await openPanel(page);
     await paintStripes(page);
     // Release one for real (so there is a drawing), then add more swimming creatures with other colours.
-    await page.getByRole('button', { name: 'Slip løs' }).click();
+    await holdRelease(page);
     await page.evaluate(() => {
       const w = window as unknown as { aquarium: { advance(s: number): void; creatures: { spawn(c: HTMLCanvasElement, s: string, p?: unknown, y?: number): unknown } }; app: { lastRelease: { drawing: { canvas: HTMLCanvasElement } } } };
       w.aquarium.advance(4);
@@ -158,19 +160,18 @@ for (const [name, size] of [['tablet', TABLET], ['phone', PHONE]] as Array<[stri
       const frac = await page.evaluate(() => {
         const w = window as unknown as W2;
         w.aquarium.advance(3);
-        w.aquarium.camera.updateMatrixWorld();
-        const V = new (w.aquarium.camera.position.constructor as new () => V3)();
+        // ADR 0006: the aquarium is ~3 screens wide, so "in the aquarium" means inside its walls, not inside the picture.
         let inside = 0;
         for (const c of w.aquarium.creatures.creatures) {
-          V.set(c.group.position.x, c.group.position.y, c.group.position.z).project(w.aquarium.camera);
-          if (Math.abs(V.x) < 1 && Math.abs(V.y) < 1 && V.z < 1) inside++;
+          const p = c.group.position;
+          if (Math.abs(p.x) <= 37.5 && p.y > 0 && p.y < 11 && p.z > -12 && p.z < 8) inside++;
         }
         return [inside, w.aquarium.creatures.creatures.length];
       });
       inView += frac[0];
       total += frac[1];
     }
-    expect(inView / total).toBeGreaterThan(0.9);
+    expect(inView / total).toBe(1);
     await page.screenshot({ path: `docs/screenshots/M3-${name}-7-flere-dyr.png` });
     expect(errors).toEqual([]);
     await ctx.close();
@@ -190,7 +191,7 @@ test('M3: the body seen obliquely, from the side and from below (tablet)', async
   const { ctx, page, errors } = await newTouchPage(browser, TABLET);
   await page.goto('/?still');
   await drawAndRelease(page);
-  await page.getByRole('button', { name: 'Slip løs' }).click();
+  await holdRelease(page);
   await page.evaluate(() => (window as unknown as { aquarium: { advance(s: number): void } }).aquarium.advance(4));
   await page.addStyleTag({ content: '.ui { visibility: hidden !important; }' });
   const shots: Array<[string, [number, number, number]]> = [
@@ -229,7 +230,7 @@ test('M3: the same hand-over on a phone (portrait)', async ({ browser }) => {
   const { ctx, page, errors } = await newTouchPage(browser, PHONE);
   await page.goto('/?still');
   const rect = await drawAndRelease(page);
-  await page.getByRole('button', { name: 'Slip løs' }).click();
+  await holdRelease(page);
   const adv = (s: number) => page.evaluate((x) => (window as unknown as { aquarium: { advance(s: number): void } }).aquarium.advance(x), s);
   await adv(0);
   const err = await registrationError(page, rect);

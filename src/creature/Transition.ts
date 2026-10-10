@@ -66,7 +66,8 @@ export class Transition {
     rng: Rng,
   ) {
     camera.updateMatrixWorld();
-    const tanHalf = Math.tan((camera.fov * Math.PI) / 360);
+    // The lens may be zoomed in (ADR 0006): what matters is the field of view it really has.
+    const tanHalf = Math.tan((camera.fov * Math.PI) / 360) / camera.zoom;
     // Distance at which a template-sized body (world size `size`) covers exactly the drawing's rect.
     const d0 = (template.size * viewport.height) / (rect.width * 2 * tanHalf);
     const upp = (2 * d0 * tanHalf) / viewport.height; // world units per CSS pixel at that depth

@@ -2,15 +2,19 @@ import * as THREE from 'three';
 import type { Creature } from '../creature/Creature';
 import { polygonBounds } from '../drawing/geometry';
 import { TEMPLATES, type Species } from '../species';
+import { carouselGeometry, CarouselScroll } from '../ui/carouselScroll';
 
 type State = 'shown' | 'popping' | 'hiding' | 'hidden' | 'inflating';
 
 interface Item {
   species: Species;
+  /** Position in the carousel (the same species can appear twice in the test setup with ?bubbles). */
+  index: number;
   root: THREE.Group;
   sway: THREE.Group;
   shell: THREE.Mesh;
-  shine: THREE.Mesh[];
+  /** The two highlights on the bubble: two quads in one mesh (one draw call), moved and faded through their vertices. */
+  shine: THREE.Mesh;
   animal: Creature;
   /** Scale (in bubble units) that makes the whole animal fit inside the bubble. */
   fit: number;
@@ -25,6 +29,8 @@ interface Item {
   r: number;
   alpha: number;
   scale: number;
+  /** 0 = in the row, 1 = folded away below the screen (CONTEXT: Kigge-knap). */
+  fold: number;
   burst: THREE.Points | null;
   burstVel: Float32Array;
 }
@@ -51,6 +57,9 @@ const BUBBLE_FRAG = `
     gl_FragColor = vec4(col, (0.05 + 0.7 * rim) * uAlpha);
     #include <colorspace_fragment>
   }`;
+
+/** Seconds between one bubble starting to fold away and the next. */
+const FOLD_STAGGER = 0.07;
 
 const easeOut = (t: number): number => 1 - (1 - t) * (1 - t);
 const easeOutBack = (t: number): number => 1 + 2.4 * Math.pow(t - 1, 3) + 1.4 * Math.pow(t - 1, 2);
@@ -83,8 +92,7 @@ export class PickerBubbles {
 
   private readonly items: Item[] = [];
   private readonly dot = dotTexture();
-  private readonly shineGeo = new THREE.PlaneGeometry(1, 1);
-  private readonly sphere = new THREE.SphereGeometry(1, 48, 32);
+  private readonly sphere = new THREE.SphereGeometry(1, 36, 22);
   private viewport = { width: 1, height: 1 };
   private time = 0;
   /** Distance from the camera: nearer than anything in the aquarium, so nothing can cut into a bubble. */
@@ -128,53 +136,89 @@ export class PickerBubbles {
     const shell = new THREE.Mesh(this.sphere, shellMat);
     shell.renderOrder = 20;
 
-    const shine = [0, 1].map((k) => {
-      const m = new THREE.Mesh(
-        this.shineGeo,
-        new THREE.MeshBasicMaterial({ map: this.dot, transparent: true, opacity: k ? 0.25 : 0.6, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }),
-      );
-      m.renderOrder = 21;
-      return m;
-    });
-    root.add(sway, shell, ...shine);
+    const shineGeo = new THREE.BufferGeometry();
+    shineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(8 * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    shineGeo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1]), 2));
+    shineGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(8 * 4).fill(1), 4).setUsage(THREE.DynamicDrawUsage));
+    shineGeo.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
+    const shine = new THREE.Mesh(
+      shineGeo,
+      new THREE.MeshBasicMaterial({ map: this.dot, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }),
+    );
+    shine.renderOrder = 21;
+    shine.frustumCulled = false;
+    root.add(sway, shell, shine);
     return {
-      species, root, sway, shell, shine, animal, fit: 0.8 / reach, centreOffset, state: 'shown', t: 0, phase: index * 2.1,
-      cx: 0, cy: 0, r: 1, alpha: 1, scale: 1, burst: null, burstVel: new Float32Array(0),
+      species, index, root, sway, shell, shine, animal, fit: 0.8 / reach, centreOffset, state: 'shown', t: 0, phase: index * 2.1,
+      cx: 0, cy: 0, r: 1, alpha: 1, scale: 1, fold: 0, burst: null, burstVel: new Float32Array(0),
     };
   }
 
-  /** Lays the bubbles out for this screen: side by side in landscape, one above the other in portrait. */
+  /** The scrolling model of the row (the HTML carousel drives it with swipes). */
+  readonly scroll = new CarouselScroll();
+  private folding = false;
+  private foldClock = 0;
+
+  /** Lays the row out for this screen: ~3 bubbles on a tablet, 1½ on an upright phone (DESIGN 8.3). */
   layout(viewport: { width: number; height: number }): void {
     this.viewport = viewport;
-    const { width: w, height: h } = viewport;
-    const r = Math.min(0.22 * w, 0.17 * h);
-    const portrait = h > w * 1.05;
-    this.items.forEach((it, i) => {
-      it.r = r;
-      if (portrait) {
-        it.cx = 0.5 * w;
-        it.cy = 0.3 * h + i * (2 * r + 0.07 * h);
-      } else {
-        it.cx = (i === 0 ? 0.36 : 0.64) * w;
-        it.cy = (i === 0 ? 0.4 : 0.56) * h;
-      }
-    });
+    const g = carouselGeometry(viewport.width, viewport.height);
+    this.geometry = g;
+    this.scroll.configure(this.items.length, g.spacing, viewport.width);
+    for (const it of this.items) {
+      it.r = g.r;
+      it.cy = g.cy;
+    }
+    this.place();
     this.sync();
     this.onLayout?.();
   }
 
+  geometry = carouselGeometry(1180, 820);
+
+  /** Bubbles follow the scroll position and the fold. */
+  private place(): void {
+    for (const it of this.items) {
+      it.cx = this.scroll.itemX(it.index);
+    }
+  }
+
   /** Where to put the (invisible) HTML buttons: centre and radius in CSS px. */
-  hitAreas(): Array<{ species: Species; x: number; y: number; r: number }> {
-    return this.items.map((it) => ({ species: it.species, x: it.cx, y: it.cy, r: it.r }));
+  hitAreas(): Array<{ species: Species; index: number; x: number; y: number; r: number }> {
+    return this.items.map((it) => ({ species: it.species, index: it.index, x: it.cx, y: it.cy + this.foldOffset(it), r: it.r }));
+  }
+
+  /** CONTEXT: Kigge-knap – the row floats down and out so the aquarium can be seen freely; or back again. */
+  setFolded(on: boolean): void {
+    this.folding = on;
+  }
+
+  get folded(): boolean {
+    return this.folding;
+  }
+
+  /** True once the row has floated away completely (nothing left to tap). */
+  get foldedAway(): boolean {
+    return this.items.every((it) => it.fold >= 0.999); // (not exactly 1: the last bubble's fold ends at 0.6/0.6 up to rounding)
+  }
+
+  private foldOffset(it: Item): number {
+    const e = it.fold * it.fold;
+    return e * (this.viewport.height - it.cy + 2.4 * it.r);
   }
 
   /** Is anything of the bubbles still visible (or animating)? */
   get visible(): boolean {
-    return this.items.some((it) => it.state !== 'hidden');
+    return this.items.some((it) => it.state !== 'hidden') && !this.foldedAway;
   }
 
   stateOf(species: Species): State {
     return (this.items.find((i) => i.species === species) as Item).state;
+  }
+
+  /** Index of the bubble nearest the middle of the screen. */
+  get centred(): number {
+    return this.scroll.nearest();
   }
 
   /** Bubbles come (back) with a little bounce. */
@@ -189,11 +233,13 @@ export class PickerBubbles {
   }
 
   /** The tapped bubble pops; the others fade away. With no argument all of them fade away (adult mode, drawing). */
-  hide(popped?: Species): void {
+  hide(popped?: Species | number): void {
+    // The tapped bubble is named by its place in the row (the same species can appear twice in the test setup).
+    const poppedIndex = typeof popped === 'number' ? popped : this.items.find((i) => i.species === popped)?.index;
     for (const it of this.items) {
       if (it.state === 'hidden') continue;
       it.t = 0;
-      if (it.species === popped) {
+      if (it.index === poppedIndex) {
         it.state = 'popping';
         this.startBurst(it);
       } else it.state = 'hiding';
@@ -202,7 +248,15 @@ export class PickerBubbles {
 
   update(dt: number, time: number): void {
     this.time = time;
+    const moved = this.scroll.update(dt);
+    if (moved) this.place();
+    // The row folds away (or comes back): each bubble a little after the one before.
+    const foldTotal = 0.6 + FOLD_STAGGER * Math.max(0, this.items.length - 1);
+    const foldBefore = this.foldClock;
+    this.foldClock = clamp01(this.foldClock + (this.folding ? dt : -dt) / foldTotal);
     for (const it of this.items) {
+      const t = this.foldClock * foldTotal - it.index * FOLD_STAGGER;
+      it.fold = clamp01(t / 0.6);
       if (it.state === 'hidden') continue; // nothing to animate or draw
       it.t += dt;
       it.phase += dt;
@@ -234,9 +288,11 @@ export class PickerBubbles {
           it.scale = 1;
           it.alpha = 1;
       }
-      it.animal.update(dt, [], { min: [0, 0, 0], max: [0, 0, 0], floorMargin: 0 });
+      if (it.root.visible) it.animal.update(dt, [], { min: [0, 0, 0], max: [0, 0, 0], floorMargin: 0 });
     }
     this.sync();
+    // The HTML buttons follow the bubbles while the row scrolls and while it folds away or comes back.
+    if (moved || this.foldClock !== foldBefore) this.onLayout?.();
   }
 
   /** Puts every bubble at its screen position in front of the camera and applies the idle floating. */
@@ -244,43 +300,65 @@ export class PickerBubbles {
     const cam = this.camera;
     cam.updateMatrixWorld();
     const { width: w, height: h } = this.viewport;
-    const tanHalf = Math.tan((cam.fov * Math.PI) / 360);
+    const tanHalf = Math.tan((cam.fov * Math.PI) / 360) / cam.zoom;
     const upp = (2 * this.distance * tanHalf) / h; // world units per CSS px at the bubbles' distance
     const ndc = new THREE.Vector3();
     for (const it of this.items) {
-      ndc.set((it.cx / w) * 2 - 1, -((it.cy / h) * 2 - 1), 0.5).unproject(cam).sub(cam.position).normalize();
+      if (it.state === 'hidden') continue;
+      // Bubbles off the side of the screen (or floated away) are not drawn at all.
+      const cyEff = it.cy + this.foldOffset(it);
+      it.root.visible = it.fold < 0.999 && it.cx + it.r * 1.5 > 0 && it.cx - it.r * 1.5 < w;
+      if (!it.root.visible) continue;
+      const foldScale = 1 - 0.12 * it.fold;
+      ndc.set((it.cx / w) * 2 - 1, -((cyEff / h) * 2 - 1), 0.5).unproject(cam).sub(cam.position).normalize();
       const rWorld = it.r * upp;
       const bob = Math.sin(it.phase * 0.9) * 0.035 * rWorld;
       const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
       it.root.position.copy(cam.position).addScaledVector(ndc, this.distance).addScaledVector(up, bob);
       it.root.quaternion.copy(cam.quaternion);
-      const s = rWorld * it.scale;
+      const s = rWorld * it.scale * foldScale;
       it.shell.scale.setScalar(s);
       (it.shell.material as THREE.ShaderMaterial).uniforms.uAlpha.value = it.alpha;
       (it.shell.material as THREE.ShaderMaterial).uniforms.uTime.value = this.time * 0.6;
-      const animalScale = it.fit * rWorld * it.scale;
+      const animalScale = it.fit * rWorld * it.scale * foldScale;
       it.animal.group.scale.setScalar(animalScale);
       // The offset that centres the animal is in its own (unscaled) units, so it scales with it.
       it.animal.group.position.set(-it.centreOffset[0] * animalScale, 0, -it.centreOffset[1] * animalScale);
       // The animal rocks gently, as if floating in the bubble: a tilt that shows its thickness, and a slow roll.
       it.sway.rotation.set(Math.sin(it.phase * 0.7) * 0.28, Math.sin(it.phase * 0.5 + 1) * 0.22, Math.sin(it.phase * 0.6 + 2) * 0.12);
-      it.shine[0].position.set(-0.42 * s, 0.46 * s, 1.0 * s);
-      it.shine[0].scale.set(0.62 * s, 0.34 * s, 1);
-      it.shine[0].rotation.z = 0.6;
-      it.shine[1].position.set(0.45 * s, -0.5 * s, 1.0 * s);
-      it.shine[1].scale.set(0.34 * s, 0.2 * s, 1);
-      it.shine[1].rotation.z = 0.6;
-      for (const m of it.shine) (m.material as THREE.MeshBasicMaterial).opacity = (m === it.shine[0] ? 0.6 : 0.25) * it.alpha;
+      this.writeShine(it, s);
       // Billboards must not be sorted behind the world: they are drawn after everything else.
       it.animal.mesh.renderOrder = 10;
     }
+  }
+
+  /** Writes the two highlights (centre, size, tilt of 0.6 rad, brightness × the bubble's alpha) into the shared quad mesh. */
+  private writeShine(it: Item, s: number): void {
+    const pos = it.shine.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const col = it.shine.geometry.getAttribute('color') as THREE.BufferAttribute;
+    const quads: Array<[number, number, number, number, number]> = [
+      [-0.42 * s, 0.46 * s, 0.62 * s, 0.34 * s, 0.6],
+      [0.45 * s, -0.5 * s, 0.34 * s, 0.2 * s, 0.25],
+    ];
+    const cos = Math.cos(0.6);
+    const sin = Math.sin(0.6);
+    quads.forEach(([cx, cy, w, h, brightness], q) => {
+      [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]].forEach(([u, v], k) => {
+        const x = u * w;
+        const y = v * h;
+        pos.setXYZ(q * 4 + k, cx + x * cos - y * sin, cy + x * sin + y * cos, 1.0 * s);
+        col.setXYZW(q * 4 + k, 1, 1, 1, brightness * it.alpha);
+      });
+    });
+    pos.needsUpdate = true;
+    col.needsUpdate = true;
   }
 
   private startBurst(it: Item): void {
     const n = 30;
     const pos = new Float32Array(n * 3);
     it.burstVel = new Float32Array(n * 3);
-    const rWorld = it.r * ((2 * this.distance * Math.tan((this.camera.fov * Math.PI) / 360)) / this.viewport.height);
+    const rWorld = it.r * ((2 * this.distance * Math.tan((this.camera.fov * Math.PI) / 360)) / this.camera.zoom / this.viewport.height);
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + Math.random() * 0.4;
       const z = (Math.random() - 0.5) * 0.8;

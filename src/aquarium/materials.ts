@@ -25,6 +25,11 @@ export interface WaterPatch {
   fish?: boolean;
   /** Creature body: back/belly colouring plus swim wave driven by `side` and `flex` attributes. */
   creature?: CreatureShader;
+  /**
+   * A body cut in two (CONTEXT: Stykke, ADR 0008): what is seen *inside* the clipped shell (the back faces) is painted in this flat
+   * colour (r, g, b in 0–1), so the cut face looks closed – in the creature's base colour, no blood, nothing inside.
+   */
+  cap?: readonly [number, number, number];
 }
 
 /**
@@ -36,7 +41,7 @@ export function patchWater<T extends THREE.MeshLambertMaterial>(mat: T, patch: W
   const cr = patch.creature;
   const key = `water-${patch.sway ? 's' : ''}${patch.caustics ?? 0}${patch.fish ? 'f' : ''}${
     cr ? `c${cr.style}${cr.size}-${cr.halfSpan.toFixed(3)}-${cr.wingAmp}-${cr.tailAmp}` : ''
-  }`;
+  }${patch.cap ? `cap${patch.cap.map((v) => v.toFixed(2)).join('-')}` : ''}`;
   mat.customProgramCacheKey = () => key;
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = timeUniform;
@@ -112,6 +117,15 @@ export function patchWater<T extends THREE.MeshLambertMaterial>(mat: T, patch: W
               // The belly faces away from the sun, so it also gets light bounced up from the pale sand.
               `diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.96, 0.92, 0.80), 0.65 * vSide);
         totalEmissiveRadiance += vSide * diffuseColor.rgb * 0.5;`
+            : ''
+        }
+        ${
+          patch.cap
+            ? // Seen from inside (through the cut) the shell is a flat, lit-from-everywhere cap in the base colour.
+              `if (!gl_FrontFacing) {
+          diffuseColor.rgb = vec3(${patch.cap.map((v) => v.toFixed(3)).join(', ')});
+          totalEmissiveRadiance = diffuseColor.rgb * 0.55;
+        }`
             : ''
         }`,
       )

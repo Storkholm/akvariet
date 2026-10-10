@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { createRng, type Rng } from '../util/random';
 import { patchWater } from './materials';
-import { terrainHeight } from './terrain';
+import { REEF_HALF_WIDTH, terrainHeight } from './terrain';
 
 type ColorFn = (x: number, y: number, z: number) => THREE.Color;
 type SwayFn = (x: number, y: number, z: number) => number;
@@ -81,15 +81,18 @@ function addBranching(batch: Batch, base: THREE.Vector3, rng: Rng, scale: number
   const [lo, hi] = rng.pick(BRANCH_PALETTES);
   const cLo = c(lo);
   const cHi = c(hi);
-  // Distant corals are hazy anyway: fewer twigs keep the triangle count down.
-  const maxDepth = base.z < -9 ? 4 : 5;
+  // Distant corals are hazy anyway (the fog hides their twigs): fewer twigs keep the triangle count down. So are the corals far out to the sides
+  // (ADR 0006: the visible number of triangles must not grow compared with the first version).
+  const maxDepth = base.z < -9 ? 3 : Math.abs(base.x) > 19 ? 4 : 5;
+  // Square twigs for what is far away or far out to the side: the haze and the distance hide it.
+  const thin = base.z < -9 || Math.abs(base.x) > 19;
   const totalH = 2.2 * scale;
   const swayFn: SwayFn = (_x, y) => Math.pow(Math.min(1, Math.max(0, (y - base.y) / totalH)), 2) * 0.55;
 
   const grow = (origin: THREE.Vector3, dir: THREE.Vector3, len: number, rad: number, depth: number): void => {
     const tStart = 1 - (depth + 1) / (maxDepth + 1);
     const tEnd = 1 - depth / (maxDepth + 1);
-    const geo = new THREE.CylinderGeometry(rad * 0.72, rad, len, 5, 1);
+    const geo = new THREE.CylinderGeometry(rad * 0.72, rad, len, thin ? 4 : 5, 1);
     geo.translate(0, len / 2, 0);
     const m = new THREE.Matrix4().compose(origin, new THREE.Quaternion().setFromUnitVectors(UP, dir), ONE);
     batch.add(geo, m, (_x, y) => lerpC(cLo, cHi, tStart + (tEnd - tStart) * (y / len)), swayFn);
@@ -324,15 +327,63 @@ const PATCHES: Patch[] = [
   { x: 11, z: -10, rx: 3, rz: 2, kelp: 3 },
 ];
 
+/** ADR 0006: the reef is built in chunks along the width, so what is outside the picture is not drawn (frustum culling). */
+export const CHUNK_WIDTH = 7;
+export const COLUMN_COUNT = Math.ceil((2 * REEF_HALF_WIDTH) / CHUNK_WIDTH);
+/** Depth bands: near the glass, the middle and far back. A chunk that spanned the whole depth could never be culled well. */
+export const BAND_COUNT = 3;
+export const CHUNK_COUNT = COLUMN_COUNT * BAND_COUNT;
+
+/** Which chunk (column × depth band) a point at (x, z) belongs to. */
+export function chunkIndex(x: number, z = 0): number {
+  const column = Math.min(COLUMN_COUNT - 1, Math.max(0, Math.floor((x + REEF_HALF_WIDTH) / CHUNK_WIDTH)));
+  const band = z > 3 ? 0 : z > -7 ? 1 : 2;
+  return column * BAND_COUNT + band;
+}
+
+/** The reef outside the middle ±24 that the first version had: the wider aquarium (ADR 0006), in the same style. */
+const EXTRA_PATCHES: Patch[] = [
+  // joining the middle to the sides
+  { x: 21.5, z: 4.5, rx: 3, rz: 2.5, branching: 2, domes: 3, anemones: 2, scale: 1.2 },
+  { x: -22, z: 4, rx: 3, rz: 2.5, branching: 2, domes: 3, anemones: 2, scale: 1.2 },
+  // right
+  { x: 28, z: 3.5, rx: 5, rz: 3, branching: 4, domes: 4, anemones: 3, rocks: 2, scale: 1.2 },
+  { x: 36, z: 5, rx: 5, rz: 3, branching: 4, domes: 4, anemones: 3, tables: 1, scale: 1.2 },
+  { x: 44, z: 5, rx: 3.5, rz: 3, domes: 3, branching: 2, anemones: 2, scale: 1.3 },
+  { x: 30, z: 10.5, rx: 5, rz: 1.5, domes: 2, branching: 2, anemones: 2, grass: 3, scale: 0.9 },
+  { x: 41, z: 11, rx: 5, rz: 1.5, domes: 2, branching: 2, anemones: 2, grass: 3, scale: 0.9 },
+  { x: 33, z: -5, rx: 12, rz: 4, branching: 4, domes: 7, tables: 4, rocks: 3, anemones: 2, scale: 1.3 },
+  { x: 36, z: -14, rx: 10, rz: 4, domes: 5, tables: 4, branching: 2, scale: 1.6 },
+  { x: 29, z: 1, rx: 3, rz: 2, grass: 4 },
+  { x: 38, z: 0, rx: 3, rz: 2, grass: 4, kelp: 3 },
+  { x: 27, z: -9, rx: 3, rz: 2, kelp: 3 },
+  // left
+  { x: -28, z: 3, rx: 5, rz: 3, branching: 4, domes: 4, anemones: 3, rocks: 2, scale: 1.2 },
+  { x: -36, z: 4.5, rx: 5, rz: 3, branching: 4, domes: 4, anemones: 3, tables: 1, scale: 1.2 },
+  { x: -44, z: 5, rx: 3.5, rz: 3, domes: 3, branching: 2, anemones: 2, scale: 1.3 },
+  { x: -31, z: 10.5, rx: 5, rz: 1.5, domes: 2, branching: 2, anemones: 2, grass: 3, scale: 0.9 },
+  { x: -41, z: 11, rx: 5, rz: 1.5, domes: 2, branching: 2, anemones: 2, grass: 3, scale: 0.9 },
+  { x: -33, z: -5, rx: 12, rz: 4, branching: 4, domes: 7, tables: 4, rocks: 3, anemones: 2, scale: 1.3 },
+  { x: -37, z: -14, rx: 10, rz: 4, domes: 5, tables: 4, branching: 2, scale: 1.6 },
+  { x: -30, z: 0, rx: 3, rz: 2, grass: 4 },
+  { x: -39, z: -1, rx: 3, rz: 2, grass: 4, kelp: 3 },
+  { x: -26, z: -9, rx: 3, rz: 2, kelp: 3 },
+];
+
 export interface Reef {
   group: THREE.Group;
   sand: THREE.Mesh;
+  /** One mesh per chunk (index = chunkIndex; null where nothing grows), for counting and tests. */
+  chunks: Array<THREE.Mesh | null>;
+  /** Shows only the chunks whose box is in the picture (call once per frame, after the camera has moved). */
+  cull(camera: THREE.Camera): void;
 }
 
 export function buildSand(): THREE.Mesh {
   const w = 220;
   const d = 170;
-  const g = new THREE.PlaneGeometry(w, d, 110, 85);
+  // 4-unit cells: the dunes are gentle, and nothing here needs more (ADR 0006: keep the triangle count down).
+  const g = new THREE.PlaneGeometry(w, d, 55, 43);
   g.rotateX(-Math.PI / 2);
   g.translate(0, 0, -(d / 2) + 25);
   const pos = g.getAttribute('position');
@@ -357,34 +408,84 @@ export function buildSand(): THREE.Mesh {
 
 export function buildReef(seed = 7): Reef {
   const rng = createRng(seed);
-  const solid = new Batch();
-  const soft = new Batch();
+  // One batch (and so one draw call) per chunk: the hard corals and rocks have a sway weight of 0, so they do not move.
+  const batches = Array.from({ length: CHUNK_COUNT }, () => new Batch());
+  const solid = batches;
+  const soft = batches;
 
-  for (const p of PATCHES) {
-    const pt = (): THREE.Vector3 => {
-      const a = rng.range(0, 6.28);
-      const r = Math.sqrt(rng.next());
-      return place(p.x + Math.cos(a) * r * p.rx, p.z + Math.sin(a) * r * p.rz);
-    };
-    const s = p.scale ?? 1;
-    for (let i = 0; i < (p.branching ?? 0); i++) addBranching(soft, pt(), rng, rng.range(1.0, 1.6) * s);
-    for (let i = 0; i < (p.domes ?? 0); i++) addDome(solid, pt(), rng, rng.range(0.7, 1.3) * s);
-    for (let i = 0; i < (p.tables ?? 0); i++) addTable(solid, pt(), rng, rng.range(0.8, 1.3) * s);
-    for (let i = 0; i < (p.anemones ?? 0); i++) addAnemone(soft, pt(), rng, rng.range(0.8, 1.3) * s);
-    for (let i = 0; i < (p.rocks ?? 0); i++) addRock(solid, pt(), rng, rng.range(0.7, 1.5) * s, rng.pick([0x2f6f7a, 0x3b5a8a, 0x4a6f7a]));
-    for (let i = 0; i < (p.grass ?? 0); i++) addGrassTuft(soft, pt(), rng, rng.range(0.9, 1.4) * s, false);
-    for (let i = 0; i < (p.kelp ?? 0); i++) addGrassTuft(soft, pt(), rng, 1, true);
+  const fill = (patches: Patch[]): void => {
+    for (const p of patches) {
+      const pt = (): THREE.Vector3 => {
+        const a = rng.range(0, 6.28);
+        const r = Math.sqrt(rng.next());
+        return place(p.x + Math.cos(a) * r * p.rx, p.z + Math.sin(a) * r * p.rz);
+      };
+      const s = p.scale ?? 1;
+      for (let i = 0; i < (p.branching ?? 0); i++) {
+        const at = pt();
+        addBranching(soft[chunkIndex(at.x, at.z)], at, rng, rng.range(1.0, 1.6) * s);
+      }
+      for (let i = 0; i < (p.domes ?? 0); i++) {
+        const at = pt();
+        addDome(solid[chunkIndex(at.x, at.z)], at, rng, rng.range(0.7, 1.3) * s);
+      }
+      for (let i = 0; i < (p.tables ?? 0); i++) {
+        const at = pt();
+        addTable(solid[chunkIndex(at.x, at.z)], at, rng, rng.range(0.8, 1.3) * s);
+      }
+      for (let i = 0; i < (p.anemones ?? 0); i++) {
+        const at = pt();
+        addAnemone(soft[chunkIndex(at.x, at.z)], at, rng, rng.range(0.8, 1.3) * s);
+      }
+      for (let i = 0; i < (p.rocks ?? 0); i++) {
+        const at = pt();
+        addRock(solid[chunkIndex(at.x, at.z)], at, rng, rng.range(0.7, 1.5) * s, rng.pick([0x2f6f7a, 0x3b5a8a, 0x4a6f7a]));
+      }
+      for (let i = 0; i < (p.grass ?? 0); i++) {
+        const at = pt();
+        addGrassTuft(soft[chunkIndex(at.x, at.z)], at, rng, rng.range(0.9, 1.4) * s, false);
+      }
+      for (let i = 0; i < (p.kelp ?? 0); i++) {
+        const at = pt();
+        addGrassTuft(soft[chunkIndex(at.x, at.z)], at, rng, 1, true);
+      }
+    }
+  };
+  fill(PATCHES); // the middle: exactly the first version's reef
+  fill(EXTRA_PATCHES);
+
+  // The big blue coral masses: the photos' one on the right, one on the left, and one at each end of the aquarium.
+  for (const [x, y, z, sx, sy, sz] of [
+    [21, 3.2, -6, 5.5, 9.5, 5],
+    [-27, 2.5, -12, 6, 7, 5],
+    [43, 3, -4, 6.5, 9, 5.5],
+    [-45, 3, -6, 6.5, 9, 5.5],
+  ] as const) {
+    addFormation(solid[chunkIndex(x, z)], new THREE.Vector3(x, y, z), new THREE.Vector3(sx, sy, sz), rng);
   }
 
-  addFormation(solid, new THREE.Vector3(21, 3.2, -6), new THREE.Vector3(5.5, 9.5, 5), rng);
-  addFormation(solid, new THREE.Vector3(-27, 2.5, -12), new THREE.Vector3(6, 7, 5), rng);
-
   const group = new THREE.Group();
-  const solidMat = patchWater(new THREE.MeshLambertMaterial({ vertexColors: true }), { caustics: 0.15 });
-  const softMat = patchWater(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), { sway: true, caustics: 0.1 });
-  const solidMesh = solid.build(solidMat);
-  const softMesh = soft.build(softMat);
-  if (solidMesh) group.add(solidMesh);
-  if (softMesh) group.add(softMesh);
-  return { group, sand: buildSand() };
+  const material = patchWater(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), { sway: true, caustics: 0.12 });
+  const chunks: Reef['chunks'] = [];
+  const boxes = new Map<THREE.Mesh, THREE.Box3>();
+  for (let i = 0; i < CHUNK_COUNT; i++) {
+    const mesh = batches[i].build(material);
+    chunks.push(mesh);
+    if (!mesh) continue;
+    // We cull by each chunk's box (tighter than the sphere three.js would use, which is huge for a long chunk).
+    mesh.frustumCulled = false;
+    mesh.geometry.computeBoundingBox();
+    // The sway moves vertices a little, so the box is a little roomy: a chunk never pops out at the picture's edge.
+    boxes.set(mesh, (mesh.geometry.boundingBox as THREE.Box3).clone().expandByScalar(2.5));
+    group.add(mesh);
+  }
+  const frustum = new THREE.Frustum();
+  const projection = new THREE.Matrix4();
+  const cull = (camera: THREE.Camera): void => {
+    camera.updateMatrixWorld();
+    projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    frustum.setFromProjectionMatrix(projection);
+    for (const [mesh, box] of boxes) mesh.visible = frustum.intersectsBox(box);
+  };
+  return { group, sand: buildSand(), chunks, cull };
 }

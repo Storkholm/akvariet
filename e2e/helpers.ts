@@ -286,3 +286,58 @@ export async function creatureScreenPoint(page: import('@playwright/test').Page,
     return { x: (v.x * 0.5 + 0.5) * a.viewport.width, y: (-v.y * 0.5 + 0.5) * a.viewport.height };
   }, id);
 }
+
+/** "Slip løs" must be held (DESIGN 8.1): press the mouse on it, wait out the 3-2-1 and let go. */
+export async function holdRelease(page: import('@playwright/test').Page, holdMs = 1800): Promise<void> {
+  const box = await page.locator('.release-btn').boundingBox();
+  if (!box) throw new Error('Slip løs is not visible');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(holdMs);
+  await page.mouse.up();
+}
+
+/** Two-finger pinch through CDP: the fingers start `from` px apart and end `to` px apart, centred on `centre`. */
+export async function touchPinch(cdp: CDPSession, centre: Pt, from: number, to: number, steps = 10): Promise<void> {
+  const at = (d: number) => [
+    { x: centre[0] - d / 2, y: centre[1], id: 0 },
+    { x: centre[0] + d / 2, y: centre[1], id: 1 },
+  ];
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at(from) });
+  for (let i = 1; i <= steps; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: at(from + ((to - from) * i) / steps) });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+}
+
+export interface RigState {
+  x: number;
+  y: number;
+  zoom: number;
+  following: boolean;
+  limitX: number;
+}
+
+/** The camera rig's pose (CONTEXT: Kamera). */
+export async function rigState(page: import('@playwright/test').Page): Promise<RigState> {
+  return page.evaluate(() => {
+    const r = (window as unknown as { aquarium: { rig: { x: number; y: number; zoom: number; following: boolean; limitX(z?: number): number } } }).aquarium.rig;
+    return { x: r.x, y: r.y, zoom: r.zoom, following: r.following, limitX: r.limitX() };
+  });
+}
+
+/** Puts a swimming creature at a known place in the water and returns its id. */
+export async function spawnAt(page: import('@playwright/test').Page, pos: [number, number, number], species: 'ray' | 'turtle' = 'ray'): Promise<string> {
+  return page.evaluate(
+    ([p, sp]) => {
+      const w = window as unknown as { aquarium: { creatures: { spawn(c: HTMLCanvasElement, s: string, p: unknown, yaw: number): { id: string } } } };
+      const c = document.createElement('canvas');
+      c.width = c.height = 512;
+      const g = c.getContext('2d') as CanvasRenderingContext2D;
+      g.fillStyle = '#2f9a5a';
+      g.fillRect(0, 0, 512, 512);
+      g.fillStyle = '#f9d21e';
+      for (let x = 40; x < 512; x += 90) g.fillRect(x, 0, 36, 512);
+      return w.aquarium.creatures.spawn(c, sp, p, 0).id;
+    },
+    [pos, species] as const,
+  );
+}

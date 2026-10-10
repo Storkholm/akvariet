@@ -14,4 +14,4 @@ Samurai-mode skal have et brøl ("Hai-yaa!", "Kiai!"), når man hugger. En stemm
 
 ## Konsekvenser
 - Ingen licensproblemer – optagelserne er familiens egne.
-- Martin uploader filerne via GitHub ("Add file → Upload files" i mappen `public/sounds/`).
+- (Udvidet af ADR 0010: også `haj-N.mp3`.) Martin uploader filerne via GitHub ("Add file → Upload files" i mappen `public/sounds/`).

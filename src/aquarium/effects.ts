@@ -1,6 +1,7 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { createRng } from '../util/random';
-import { TANK, terrainHeight } from './terrain';
+import { REEF_HALF_WIDTH, TANK, terrainHeight } from './terrain';
 
 function softDot(): THREE.CanvasTexture {
   const c = document.createElement('canvas');
@@ -18,10 +19,11 @@ function softDot(): THREE.CanvasTexture {
   return t;
 }
 
-/** Soft slanted shafts of sunlight from the surface. */
+/** Soft slanted shafts of sunlight from the surface – all in one mesh (one draw call), each fading on its own through its vertex alpha. */
 export class LightRays {
   readonly group = new THREE.Group();
-  private readonly rays: Array<{ mesh: THREE.Mesh; base: number; speed: number; phase: number }> = [];
+  private readonly rays: Array<{ base: number; speed: number; phase: number }> = [];
+  private readonly alpha: THREE.BufferAttribute;
 
   constructor(seed = 5) {
     const rng = createRng(seed);
@@ -44,30 +46,40 @@ export class LightRays {
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
 
-    for (let i = 0; i < 9; i++) {
-      const mat = new THREE.MeshBasicMaterial({
-        map: tex,
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        fog: false,
-        opacity: 0.1,
-      });
+    const planes: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < 18; i++) {
       const w = rng.range(2.5, 6);
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, 24), mat);
-      mesh.position.set(rng.range(-22, 22), 11 - 12, rng.range(-18, -3));
-      mesh.rotation.z = rng.range(0.12, 0.3);
-      mesh.rotation.y = rng.range(-0.3, 0.3);
-      this.group.add(mesh);
-      this.rays.push({ mesh, base: rng.range(0.07, 0.15), speed: rng.range(0.15, 0.4), phase: rng.range(0, 6.28) });
+      const g = new THREE.PlaneGeometry(w, 24);
+      const m = new THREE.Matrix4().compose(
+        new THREE.Vector3(rng.range(-REEF_HALF_WIDTH + 2, REEF_HALF_WIDTH - 2), 11 - 12, rng.range(-18, -3)),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rng.range(-0.3, 0.3), rng.range(0.12, 0.3), 'XYZ')),
+        new THREE.Vector3(1, 1, 1),
+      );
+      g.applyMatrix4(m);
+      g.deleteAttribute('normal');
+      g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(4 * 4).fill(1), 4));
+      planes.push(g);
+      this.rays.push({ base: rng.range(0.07, 0.15), speed: rng.range(0.15, 0.4), phase: rng.range(0, 6.28) });
     }
+    const merged = mergeGeometries(planes, false);
+    planes.forEach((g) => g.dispose());
+    this.alpha = merged.getAttribute('color') as THREE.BufferAttribute;
+    this.alpha.setUsage(THREE.DynamicDrawUsage);
+    const mesh = new THREE.Mesh(
+      merged,
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, vertexColors: true }),
+    );
+    mesh.frustumCulled = false;
+    this.group.add(mesh);
+    this.update(0);
   }
 
   update(time: number): void {
-    for (const r of this.rays) {
-      (r.mesh.material as THREE.MeshBasicMaterial).opacity = r.base * (0.65 + 0.35 * Math.sin(time * r.speed + r.phase));
-      r.mesh.position.x += Math.sin(time * 0.05 + r.phase) * 0.0015;
-    }
+    this.rays.forEach((r, i) => {
+      const a = r.base * (0.65 + 0.35 * Math.sin(time * r.speed + r.phase));
+      for (let v = 0; v < 4; v++) this.alpha.setW(i * 4 + v, a);
+    });
+    this.alpha.needsUpdate = true;
   }
 }
 
@@ -83,11 +95,11 @@ export class Particles {
   constructor() {
     const tex = softDot();
 
-    const n = 260;
+    const n = 520;
     this.snowBase = new Float32Array(n * 3);
     const r = createRng(22);
     for (let i = 0; i < n; i++) {
-      this.snowBase.set([r.range(-24, 24), r.range(0.5, TANK.surfaceY - 1), r.range(-16, 9)], i * 3);
+      this.snowBase.set([r.range(-REEF_HALF_WIDTH, REEF_HALF_WIDTH), r.range(0.5, TANK.surfaceY - 1), r.range(-16, 9)], i * 3);
     }
     const snowGeo = new THREE.BufferGeometry();
     snowGeo.setAttribute('position', new THREE.BufferAttribute(this.snowBase.slice(), 3));
@@ -97,7 +109,7 @@ export class Particles {
     );
     this.snow.frustumCulled = false;
 
-    const sources: Array<[number, number]> = [[-7, 2], [10, 0.5], [3, -8], [-16, -4]];
+    const sources: Array<[number, number]> = [[-7, 2], [10, 0.5], [3, -8], [-16, -4], [-30, 3], [-41, -6], [26, 2], [38, -5], [-24, -10], [19, -9]];
     const per = 22;
     const bGeo = new THREE.BufferGeometry();
     bGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(sources.length * per * 3), 3));

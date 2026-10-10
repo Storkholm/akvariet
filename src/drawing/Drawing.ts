@@ -2,7 +2,7 @@ import type { Template } from '../species/types';
 import { floodFill, parseHex, type Rect } from './floodFill';
 import { signedArea } from './geometry';
 import { rasterizeMask } from './mask';
-import { BRUSH_SIZES, type BrushIndex } from './palette';
+import { BRUSH_SIZES, RAINBOW, RAINBOW_BANDS, rainbowBand, rainbowColor, type BrushIndex } from './palette';
 import { StrokeSmoother, type Segment } from './smoothing';
 import { UndoStack } from './undoStack';
 
@@ -26,6 +26,7 @@ export class Drawing {
   /** Coverage of the template (255 inside the outline). */
   readonly mask: Uint8Array;
   tool: Tool = 'crayon';
+  /** A '#rrggbb' hex, or RAINBOW for the rainbow crayon. */
   color = '#e8332a';
   brush: BrushIndex = 1;
   /** Called whenever the undo availability may have changed. */
@@ -43,6 +44,10 @@ export class Drawing {
   private dirty: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
   private strokeStyle: string | CanvasPattern = '#000';
   private strokeWidth = 0;
+  /** Rainbow crayon: how far the current stroke has run and where in the rainbow it began. */
+  private rainbow = false;
+  private rainbowDistance = 0;
+  private rainbowPhase = 0;
 
   constructor(private readonly template: Template) {
     this.canvas = document.createElement('canvas');
@@ -101,7 +106,10 @@ export class Drawing {
     }
     const width = BRUSH_SIZES[this.brush] * (this.tool === 'eraser' ? 1.6 : 1);
     this.strokeWidth = width;
-    this.strokeStyle = this.tool === 'eraser' ? this.template.baseColor : this.grain(this.color);
+    this.rainbow = this.tool === 'crayon' && this.color === RAINBOW;
+    this.rainbowDistance = 0;
+    this.rainbowPhase = ((x * 0.37 + y * 0.61) / 600) % 1; // strokes begin at different places in the rainbow
+    this.strokeStyle = this.tool === 'eraser' ? this.template.baseColor : this.grain(this.rainbow ? rainbowColor(0, this.rainbowPhase) : this.color);
     this.stroking = true;
     this.dirty = null;
     this.smoother = new StrokeSmoother();
@@ -168,13 +176,39 @@ export class Drawing {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     for (const s of segs) {
-      ctx.beginPath();
-      ctx.moveTo(s.x0, s.y0);
-      ctx.quadraticCurveTo(s.cx, s.cy, s.x1, s.y1);
-      ctx.stroke();
+      if (this.rainbow) this.drawRainbowSegment(s);
+      else {
+        ctx.beginPath();
+        ctx.moveTo(s.x0, s.y0);
+        ctx.quadraticCurveTo(s.cx, s.cy, s.x1, s.y1);
+        ctx.stroke();
+      }
       this.extendDirty(s.x0, s.y0);
       this.extendDirty(s.cx, s.cy);
       this.extendDirty(s.x1, s.y1);
+    }
+  }
+
+  /** The rainbow crayon changes colour along the stroke: the curve is cut into short pieces, each in its own colour. */
+  private drawRainbowSegment(s: Segment): void {
+    const ctx = this.ctx;
+    const chord = Math.hypot(s.x1 - s.x0, s.y1 - s.y0);
+    const pieces = Math.max(1, Math.ceil(chord / 8));
+    let px = s.x0;
+    let py = s.y0;
+    for (let i = 1; i <= pieces; i++) {
+      const t = i / pieces;
+      const u = 1 - t;
+      const x = u * u * s.x0 + 2 * u * t * s.cx + t * t * s.x1;
+      const y = u * u * s.y0 + 2 * u * t * s.cy + t * t * s.y1;
+      ctx.strokeStyle = this.grain(rainbowColor(this.rainbowDistance, this.rainbowPhase));
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      this.rainbowDistance += Math.hypot(x - px, y - py);
+      px = x;
+      py = y;
     }
   }
 
@@ -190,7 +224,9 @@ export class Drawing {
 
   private fill(x: number, y: number): void {
     const img = this.ctx.getImageData(0, 0, DRAWING_SIZE, DRAWING_SIZE);
-    const rect = floodFill(img.data, DRAWING_SIZE, DRAWING_SIZE, x, y, parseHex(this.color), this.mask, {
+    const bands = RAINBOW_BANDS.map(parseHex);
+    const color = this.color === RAINBOW ? (row: number, minY: number, maxY: number) => bands[rainbowBand(row, minY, maxY)] : parseHex(this.color);
+    const rect = floodFill(img.data, DRAWING_SIZE, DRAWING_SIZE, x, y, color, this.mask, {
       tolerance: FILL_TOLERANCE,
       grain: true,
     });

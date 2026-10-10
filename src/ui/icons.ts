@@ -10,8 +10,9 @@ export const ICONS = {
   eraser: S(
     '<g transform="rotate(-38 12 12)"><rect x="2.5" y="7.5" width="19" height="9.5" rx="2.4" fill="#f59ab4"/><rect x="2.5" y="7.5" width="7.5" height="9.5" rx="2.4" fill="#ffffff"/><rect x="2.5" y="7.5" width="19" height="9.5" rx="2.4" fill="none" stroke="#4a5a78" stroke-width="1.1"/></g>',
   ),
+  // A paint bucket tipped over to the left with a drop of paint falling out of its lip (readable for a 4-year-old).
   bucket: S(
-    '<path d="M4.2 12.4 11 5.6a1.6 1.6 0 0 1 2.3 0l5.6 5.6a1.6 1.6 0 0 1 0 2.3l-5.4 5.4a1.6 1.6 0 0 1-2.3 0l-4.6-4.6" fill="#ffffff" stroke="#35507f" stroke-width="1.6" stroke-linejoin="round"/><path d="M5.6 13.2h12.2" stroke="#35507f" stroke-width="1.4"/><path d="M20.4 14.4c1.3 1.7 2 2.8 2 3.7a2 2 0 0 1-4 0c0-.9.7-2 2-3.7z" fill="#2d9cf0" stroke="#1e6fb8" stroke-width=".8"/><path d="M4.2 12.4 8.6 8" stroke="#35507f" stroke-width="1.6" stroke-linecap="round" fill="none"/>',
+    '<g transform="rotate(-38 13.5 12)"><path d="M5.2 6.6c.8-6.4 16.2-6.4 17 0" fill="none" stroke="#35507f" stroke-width="1.6" stroke-linecap="round"/><path d="M6.6 8.4 8.8 19.6a1.6 1.6 0 0 0 1.6 1.3h6.2a1.6 1.6 0 0 0 1.6-1.3l2.2-11.2z" fill="#ffffff" stroke="#35507f" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.5 12.4h13l-.9 4.6H8.5z" fill="#2d9cf0"/><ellipse cx="13.5" cy="8.4" rx="7.1" ry="2.3" fill="#9fd4ff" stroke="#35507f" stroke-width="1.5"/></g><path d="M4.2 13.2c1.6 2.2 2.5 3.6 2.5 4.8a2.5 2.5 0 0 1-5 0c0-1.2.9-2.6 2.5-4.8z" fill="#2d9cf0" stroke="#1e6fb8" stroke-width=".9" stroke-linejoin="round"/>',
   ),
   brush: (r: number): string => S(`<circle cx="12" cy="12" r="${r}" fill="currentColor"/>`),
   release: S(
@@ -30,6 +31,22 @@ export const ICONS = {
   ),
   unlock: S(
     '<rect x="5" y="10.5" width="14" height="10" rx="2.4" fill="currentColor"/><path d="M8 10.5V8a4 4 0 0 1 7.6-1.7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  ),
+  fullscreen: S(
+    '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  ),
+  exitFullscreen: S(
+    '<path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  ),
+  eye: S(
+    '<path d="M1.8 12C4.6 7 8.2 4.8 12 4.8S19.4 7 22.2 12C19.4 17 15.8 19.2 12 19.2S4.6 17 1.8 12z" fill="#ffffff"/><circle cx="12" cy="12" r="4.6" fill="currentColor"/><circle cx="13.6" cy="10.4" r="1.5" fill="#ffffff"/>',
+  ),
+  pencil: S(
+    '<g transform="translate(12 12) rotate(45) scale(1.28) translate(-12 -12.2)"><path d="M9.2 2.8h5.6v13H9.2z" fill="#f9d21e" stroke="#7a5a10" stroke-width=".7" stroke-linejoin="round"/><path d="M9.2 15.8h5.6L12 21.4z" fill="#f3d6a6"/><path d="M10.8 19.2h2.4L12 21.4z" fill="currentColor"/><path d="M9.2 2.8h5.6v2.6H9.2z" fill="#f59ab4"/><path d="M9.2 5.4h5.6v1.2H9.2z" fill="#cfd6e4"/></g>',
+  ),
+  // A katana: a long, slightly curved blade running from the lower left to the upper right, a guard and a wrapped grip.
+  sword: S(
+    '<path d="M21.2 2.6c-.6 3.2-4.2 9.4-10.1 14.6l-1.5-1.5C14.8 9.8 18.9 4.8 21.2 2.6z" fill="#f4f7fb" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M7.6 14.4l2 2-1.2 1.2-2-2z" fill="#f5c542" stroke="currentColor" stroke-width="1"/><path d="M8.4 15.6 4 20" stroke="#8a3b2a" stroke-width="3" stroke-linecap="round"/><path d="M5.8 17.4l1.6 1.6M4.7 18.5 6.3 20.1" stroke="#f1d9a7" stroke-width=".9" stroke-linecap="round"/>',
   ),
   trash: S(
     '<path d="M5 7h14M9.5 7V4.8h5V7M7 7l.8 12.2a1 1 0 0 0 1 .9h6.4a1 1 0 0 0 1-.9L17 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',

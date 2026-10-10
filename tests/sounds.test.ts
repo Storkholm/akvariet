@@ -3,16 +3,16 @@ import { bubbleSchedule, crayonFrequency, fillNoise, PENTATONIC } from '../src/a
 import { createRng } from '../src/util/random';
 
 describe('crayon notes', () => {
-  const notes = Array.from({ length: 12 }, (_, i) => crayonFrequency(i));
+  const notes = Array.from({ length: 14 }, (_, i) => crayonFrequency(i));
 
-  it('start at C4 and climb steadily, one note per crayon', () => {
-    expect(notes[0]).toBeCloseTo(261.63, 1);
+  it('start at A3 and climb steadily, one note per crayon', () => {
+    expect(notes[0]).toBeCloseTo(220, 1);
     for (let i = 1; i < notes.length; i++) expect(notes[i]).toBeGreaterThan(notes[i - 1]);
   });
 
   it('stay in a gentle range (nothing shrill for small ears)', () => {
-    expect(Math.min(...notes)).toBeGreaterThan(250);
-    expect(Math.max(...notes)).toBeLessThan(1300);
+    expect(Math.min(...notes)).toBeGreaterThan(200);
+    expect(Math.max(...notes)).toBeLessThan(1350);
   });
 
   it('are all notes of one pentatonic scale: any two neighbours are a whole step or a minor third', () => {
@@ -23,9 +23,9 @@ describe('crayon notes', () => {
     expect(PENTATONIC).toEqual([0, 2, 4, 7, 9]);
   });
 
-  it('every note is exactly on the 12-tone grid', () => {
+  it('every note is exactly on the 12-tone grid (A = 220 Hz)', () => {
     for (const f of notes) {
-      const semis = 12 * Math.log2(f / 261.63);
+      const semis = 12 * Math.log2(f / 220);
       expect(Math.abs(semis - Math.round(semis))).toBeLessThan(1e-6);
     }
   });

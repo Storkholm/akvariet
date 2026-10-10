@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { creatureScreenPoint, newTouchPage, openPanel, paintStripes, PHONE, reloadAndRestore, seedCreatures, sceneInfo, tap, TABLET } from './helpers';
+import { creatureScreenPoint, holdRelease, newTouchPage, openPanel, paintStripes, PHONE, reloadAndRestore, seedCreatures, sceneInfo, tap, TABLET } from './helpers';
 
 type Pg = import('@playwright/test').Page;
 type W = {
@@ -28,6 +28,13 @@ for (const [name, size] of [['tablet', TABLET], ['phone', PHONE]] as const) {
     await seededAquarium(page, 3);
     await page.evaluate(() => (window as unknown as { app: { picker: { hide(): void } } }).app.picker.hide());
 
+    // The aquarium is three screens wide (ADR 0006): slide the camera over to where the first creature swims.
+    await page.evaluate(() => {
+      const w = window as unknown as { aquarium: { advance(s: number): void; rig: { grab(): void; panBy(x: number, y: number): void }; creatures: { creatures: Array<{ group: { position: { x: number } } }> } } };
+      w.aquarium.rig.grab();
+      w.aquarium.rig.panBy(w.aquarium.creatures.creatures[0].group.position.x, 0);
+      w.aquarium.advance(3);
+    });
     // Find a creature that is fully in view and tap it.
     let target: { id: string; x: number; y: number } | null = null;
     for (let i = 0; i < 40 && !target; i++) {
@@ -41,7 +48,9 @@ for (const [name, size] of [['tablet', TABLET], ['phone', PHONE]] as const) {
     expect(target, 'a creature is in view').not.toBeNull();
     const t = target as { id: string; x: number; y: number };
 
-    await tap(cdp, [t.x, t.y]);
+    // A mouse click: press and release arrive back to back. (A CDP touch tap can be held for most of a second on a slow CI
+    // machine, and then it is rightly not a tap any more.)
+    await page.mouse.click(t.x, t.y);
     const readState = () => page.evaluate((id) => {
       const w = window as unknown as W;
       const c = w.aquarium.creatures.creatures.find((k) => k.id === id);
@@ -82,14 +91,15 @@ test('M6: no sound before the first tap; the first tap unlocks it; the crayons p
 
   await openPanel(page);
   const crayons = page.locator('.crayon');
-  expect(await crayons.count()).toBe(12);
+  expect(await crayons.count()).toBe(14);
   await crayons.nth(0).click({ force: true });
   await crayons.nth(5).click({ force: true });
   expect((await played(page)).filter((p) => p === 'pling').length).toBeGreaterThanOrEqual(2);
 
   await paintStripes(page);
-  await page.getByRole('button', { name: 'Slip løs' }).click();
+  await holdRelease(page);
   expect(await played(page)).toContain('swoosh');
+  expect((await played(page)).filter((p) => p === 'countdown')).toHaveLength(3); // M7: one soft tone per number
   expect(errors).toEqual([]);
   await ctx.close();
 });
@@ -208,7 +218,8 @@ test('M6: installable app – manifest, icons and service worker', async ({ brow
   const manifest = await (await page.request.get(manifestUrl)).json();
   expect(manifest.name).toBe('Akvariet');
   expect(manifest.lang).toBe('da');
-  expect(manifest.display).toBe('standalone');
+  expect(manifest.display).toBe('fullscreen');
+  expect(manifest.display_override).toEqual(['fullscreen', 'standalone']);
   expect(manifest.icons.map((i: { sizes: string; purpose: string }) => `${i.sizes}:${i.purpose}`)).toEqual(['192x192:any', '512x512:any', '512x512:maskable']);
   for (const icon of manifest.icons) expect((await page.request.get(new URL(icon.src, manifestUrl).href)).ok()).toBe(true);
   const touchIcon = await page.evaluate(() => (document.querySelector('link[rel=apple-touch-icon]') as HTMLLinkElement).href);
