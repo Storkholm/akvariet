@@ -19,8 +19,8 @@ import type { BrowserContext, CDPSession, Locator } from '@playwright/test';
 
 export type Pt = [number, number];
 
-export async function newTouchPage(browser: import('@playwright/test').Browser, size: { width: number; height: number }, dpr = 1) {
-  const ctx: BrowserContext = await browser.newContext({ viewport: size, hasTouch: true, isMobile: true, deviceScaleFactor: dpr });
+export async function newTouchPage(browser: import('@playwright/test').Browser, size: { width: number; height: number }, dpr = 1, serviceWorkers: 'allow' | 'block' = 'allow') {
+  const ctx: BrowserContext = await browser.newContext({ viewport: size, hasTouch: true, isMobile: true, deviceScaleFactor: dpr, serviceWorkers });
   const page = await ctx.newPage();
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
