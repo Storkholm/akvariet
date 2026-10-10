@@ -309,7 +309,8 @@ test.describe('M13: brøl (ADR 0007)', () => {
   });
 
   test('uden optagelser bruges kun sværdets swoosh og ping, og spillet fejler ikke', async ({ browser }) => {
-    const t = await newTouchPage(browser, TABLET);
+    // (Service workers blocked: otherwise the app's own offline cache can answer for the blocked files, depending on timing.)
+    const t = await newTouchPage(browser, TABLET, 1, 'block');
     await t.page.route('**/sounds/*.mp3', (r) => r.abort());
     await t.page.goto('/?still');
     await t.page.evaluate(() => (window as unknown as { app: { restored: Promise<void> } }).app.restored);
