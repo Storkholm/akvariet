@@ -1,6 +1,9 @@
 import type * as THREE from 'three';
 import { Fragment } from './Fragment';
 
+/** No more than this many pieces lie in the aquarium at once: when it is full, swipes only cut living creatures (ADR 0011). */
+export const MAX_PIECES = 40;
+
 /** All pieces lying in (or sinking through) the aquarium. */
 export class Fragments {
   readonly list: Fragment[] = [];
@@ -14,6 +17,15 @@ export class Fragments {
       this.list.push(f);
       this.scene.add(f.group);
     }
+  }
+
+  /** Replaces a piece by the two halves it was cut into (no bubbles, no sound: it was not eaten). */
+  replace(old: Fragment, ...pieces: Fragment[]): void {
+    const i = this.list.indexOf(old);
+    if (i >= 0) this.list.splice(i, 1);
+    this.scene.remove(old.group);
+    old.dispose();
+    this.add(...pieces);
   }
 
   /** Pieces a shark may still go for. */

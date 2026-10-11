@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { bubbleSchedule, crayonFrequency, fillNoise, PENTATONIC } from '../src/audio/sounds';
+import { leadingSilence } from '../src/audio/AudioEngine';
 import { createRng } from '../src/util/random';
 
 describe('crayon notes', () => {
-  const notes = Array.from({ length: 14 }, (_, i) => crayonFrequency(i));
+  const notes = Array.from({ length: 15 }, (_, i) => crayonFrequency(i));
 
   it('start at A3 and climb steadily, one note per crayon', () => {
     expect(notes[0]).toBeCloseTo(220, 1);
@@ -12,7 +13,7 @@ describe('crayon notes', () => {
 
   it('stay in a gentle range (nothing shrill for small ears)', () => {
     expect(Math.min(...notes)).toBeGreaterThan(200);
-    expect(Math.max(...notes)).toBeLessThan(1350);
+    expect(Math.max(...notes)).toBeLessThan(1500);
   });
 
   it('are all notes of one pentatonic scale: any two neighbours are a whole step or a minor third', () => {
@@ -76,5 +77,18 @@ describe('fillNoise', () => {
       return diff / d.length;
     };
     expect(smooth('brown')).toBeLessThan(smooth('white') * 0.3);
+  });
+});
+
+describe('leadingSilence', () => {
+  it('finds the first audible sample, a little early', () => {
+    const data = new Float32Array(48000);
+    data[12000] = 0.5;
+    expect(leadingSilence(data, 48000)).toBeCloseTo(0.25 - 0.015, 3);
+  });
+  it('is 0 for a recording that starts at once or is silent', () => {
+    const loud = new Float32Array(100).fill(0.4);
+    expect(leadingSilence(loud, 48000)).toBe(0);
+    expect(leadingSilence(new Float32Array(100), 48000)).toBe(0);
   });
 });

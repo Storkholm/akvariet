@@ -197,8 +197,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* leave room for the 14 crayons on the left; tools sit on the wood to their right */
-  padding: 0 max(14px, env(safe-area-inset-right)) 0 calc(max(14px, env(safe-area-inset-left)) + 14 * var(--cw) + 18px);
+  /* leave room for the 15 crayons on the left; tools sit on the wood to their right */
+  padding: 0 max(14px, env(safe-area-inset-right)) 0 calc(max(14px, env(safe-area-inset-left)) + 15 * var(--cw) + 18px);
   background: linear-gradient(#f6e2b0, #e6c987);
   border-top: 3px solid #fff4d2;
   border-radius: 22px 22px 0 0;
@@ -384,7 +384,7 @@
   background: #3bb673;
 }
 
-/* Narrower landscape screens (up to a 1366 px iPad Pro's neighbours; 14 crayons are wide): no room beside the crayons, so the tools sit on
+/* Narrower landscape screens (up to a 1366 px iPad Pro's neighbours; 15 crayons are wide): no room beside the crayons, so the tools sit on
    the wood under them (the crayons' lower halves are tucked behind the tray anyway). */
 @media (orientation: landscape) and (max-width: 1359px) {
   .bar {
@@ -392,10 +392,12 @@
   }
 }
 
-/* ---------- portrait / narrow: crayons lie in a compact 2×6 tray above the tools ---------- */
+/* ---------- portrait / narrow: crayons lie in a compact 2-row tray above the tools ---------- */
 @media (orientation: portrait), (max-width: 760px) {
   .panel {
-    --cw: min(52px, calc((100vw - 24px) / 7));
+    --cw: 48px;
+    /* 15 crayons in 2 rows of 8 + 7: on narrow phones the 48 px crayons overlap a little instead of shrinking below 48 px. */
+    --pitch: min(var(--cw), calc((100vw - 16px - var(--cw)) / 7));
     --portrait-top: calc(max(8px, env(safe-area-inset-top)) + 48px);
   }
   /* Home (left) and undo (right) sit in the top corners; the figure never starts above the strip they use. */
@@ -454,7 +456,7 @@
   .crayons {
     position: static;
     display: grid;
-    grid-template-columns: repeat(7, var(--cw));
+    grid-template-columns: repeat(7, var(--pitch)) var(--cw);
     justify-content: center;
     gap: 6px 0;
     padding-top: 12px;

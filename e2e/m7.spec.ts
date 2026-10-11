@@ -117,14 +117,14 @@ test.describe('M7: Slip løs skal holdes nede', () => {
   });
 });
 
-test.describe('M7: 14 farveblyanter', () => {
+test.describe('M7: 15 farveblyanter', () => {
   test('grå ligger mellem brun og sort, regnbue sidst – og bakken passer på alle skærme', async ({ browser }) => {
     for (const [w, h] of [[1366, 1024], [1180, 820], [1024, 768], [390, 844], [360, 740]]) {
       const { ctx, page } = await newTouchPage(browser, { width: w, height: h });
       await page.goto('/?still');
       await openPanel(page);
       const names = await page.locator('.crayon').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
-      expect(names).toEqual(['Rød', 'Orange', 'Gul', 'Lysegrøn', 'Mørkegrøn', 'Turkis', 'Lyseblå', 'Mørkeblå', 'Lilla', 'Lyserød', 'Brun', 'Grå', 'Sort', 'Regnbue']);
+      expect(names).toEqual(['Rød', 'Orange', 'Gul', 'Lysegrøn', 'Mørkegrøn', 'Turkis', 'Lyseblå', 'Mørkeblå', 'Lilla', 'Lyserød', 'Brun', 'Grå', 'Sort', 'Hvid', 'Regnbue']);
       const boxes = await page.locator('.crayon').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
       for (const b of boxes) {
         expect(b.left, `crayon inside @${w}`).toBeGreaterThanOrEqual(-0.5);
@@ -140,7 +140,7 @@ test.describe('M7: 14 farveblyanter', () => {
       if (bar && release && bar.y < release.y + release.height && release.y < bar.y + bar.height) expect(bar.x + bar.width, `tools clear of release @${w}`).toBeLessThanOrEqual(release.x + 0.5);
       // Tools (on the bar) may sit under the crayons' tucked halves but never over their visible parts.
       if (bar && crayons && w >= 1360) expect(bar.x, `tools beside the crayons @${w}`).toBeGreaterThanOrEqual(crayons.x + crayons.width - 0.5);
-      if (w === 1180 || w === 390) await page.screenshot({ path: `docs/screenshots/M7-${w === 1180 ? 'tablet' : 'phone'}-2-bakke-14-blyanter.png` });
+      if (w === 1180 || w === 390) await page.screenshot({ path: `docs/screenshots/M7-${w === 1180 ? 'tablet' : 'phone'}-2-bakke-15-blyanter.png` });
       await ctx.close();
     }
   });

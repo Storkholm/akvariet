@@ -5,7 +5,7 @@ export const timeUniform = { value: 0 };
 
 /** Swim motion of a creature (DESIGN 3.4); numbers are baked into the shader source. */
 export interface CreatureShader {
-  style: 'ray' | 'turtle';
+  style: 'ray' | 'turtle' | 'starfish' | 'urchin' | 'cucumber';
   /** World units per template unit. */
   size: number;
   /** World half span of the wings (distance from the centre line to the wing tip). */
@@ -182,6 +182,43 @@ function creatureMotion(cr: CreatureShader): string {
           transformed = pv + d;
           // The whole body rides gently up and down with the strokes.
           transformed.y += uFlap * 0.012 * ${f(cr.size)} * sin(p + 0.8);
+        }`;
+  }
+  if (cr.style === 'starfish') {
+    // Five arms ripple: the tips curl up and down in turn, and sway a little to the side.
+    const reach = cr.size * 0.46;
+    return `
+        {
+          float r = length(transformed.xz);
+          float k = clamp(r / ${f(reach)}, 0.0, 1.0);
+          float ang = atan(transformed.z, transformed.x);
+          float arm = sin(uPhase * 2.0 + ang * 5.0);
+          transformed.y += uFlap * arm * ${f(cr.wingAmp)} * ${f(reach)} * k * k;
+          float sw = uFlap * 0.12 * sin(uPhase * 1.6 + ang * 5.0 + 1.3) * k * k;
+          float cs = cos(sw);
+          float sn = sin(sw);
+          transformed.xz = vec2(transformed.x * cs - transformed.z * sn, transformed.x * sn + transformed.z * cs);
+        }`;
+  }
+  if (cr.style === 'urchin') {
+    // The round body breathes a little; the spikes (separate mesh) do the waving.
+    return `
+        {
+          float br = 1.0 + uFlap * ${f(cr.wingAmp)} * sin(uPhase * 2.0);
+          transformed.xz *= br;
+          transformed.y *= 1.0 + uFlap * ${f(cr.wingAmp)} * 0.6 * sin(uPhase * 2.0 + 1.0);
+        }`;
+  }
+  if (cr.style === 'cucumber') {
+    // A wave runs from the head down the body: it bends sideways, and thickens and thins as it passes.
+    return `
+        {
+          float z0 = transformed.z;
+          float wave = sin(uPhase * 2.0 - z0 * 2.0);
+          float thick = 1.0 + uFlap * ${f(cr.wingAmp)} * 1.4 * wave;
+          transformed.x = transformed.x * thick + uFlap * ${f(cr.wingAmp * 0.9)} * ${f(cr.size)} * 0.5 * sin(uPhase * 2.0 - z0 * 2.0 + 1.2);
+          transformed.y *= thick;
+          transformed.z *= 1.0 + uFlap * ${f(cr.wingAmp)} * 0.5 * sin(uPhase * 2.0);
         }`;
   }
   // Ray: the wave runs from the body out to the wing tips; the trailing edge lags behind the leading edge.

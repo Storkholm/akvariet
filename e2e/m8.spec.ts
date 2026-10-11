@@ -405,8 +405,11 @@ test.describe('M8: karrusellen', () => {
     await touchDrag(cdp, line([330, a0[0].y], [90, a0[0].y], 8));
     await adv(page, 1.5);
     const a1 = await areas(page);
-    expect(a1[1].x - a1[1].r).toBeGreaterThanOrEqual(0);
-    expect(a1[1].x + a1[1].r).toBeLessThanOrEqual(PHONE.width);
+    // The row has moved on and snapped: the bubble nearest the middle is whole (with five species a fling may carry past the second one).
+    const middle = [...a1].sort((p, q) => Math.abs(p.x - PHONE.width / 2) - Math.abs(q.x - PHONE.width / 2))[0];
+    expect(middle.index).toBeGreaterThanOrEqual(1);
+    expect(middle.x - middle.r).toBeGreaterThanOrEqual(0);
+    expect(middle.x + middle.r).toBeLessThanOrEqual(PHONE.width);
     await page.screenshot({ path: 'docs/screenshots/M8-phone-2-karrusel-swipet.png' });
     expect(errors).toEqual([]);
     await ctx.close();
@@ -492,7 +495,8 @@ test.describe('M8: ydeevne og indhold', () => {
   const V1_TRIANGLES = 259_406;
 
   test('det synlige antal trekanter vokser ikke i forhold til v1 – uanset hvor kameraet står', async ({ browser }) => {
-    // With the species there are today (two bubbles, as in the first version's measurement); the bubbles are part of the picture.
+    test.setTimeout(240_000); // 54 camera positions, each simulated for 6 s
+    // The bubbles of all the species there are today are part of the picture (the first version's measurement had two).
     const { ctx, page, errors } = await open(browser, TABLET, '?still');
     const rows: string[] = [];
     let worst = 0;

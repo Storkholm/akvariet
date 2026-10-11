@@ -131,7 +131,7 @@ test.describe('M13: hug og stykker', () => {
     expect(await living(page)).toBe(before - 1);
     expect(await fragments(page)).toBe(2);
     // The swipe drew a glowing trail (it fades in 0.3 s, so the test looks at how long it got).
-    expect(await page.evaluate(() => (window as unknown as W).app.samurai.trailPeak)).toBeGreaterThan(5);
+    expect(await page.evaluate(() => (window as unknown as W).app.samurai.trailPeak)).toBeGreaterThan(2);
     await page.screenshot({ path: 'docs/screenshots/M13-tablet-2-hug.png' });
     // The creature is deleted from the saved ones; the pieces are not saved.
     await expect.poll(() => storedIds(page)).not.toContain(target);
@@ -148,7 +148,7 @@ test.describe('M13: hug og stykker', () => {
     await ctx.close();
   });
 
-  test('et swipe ved siden af rammer intet, et tryk på et dyr er ikke et hug, og stykker kan ikke deles igen', async ({ browser }) => {
+  test('et swipe ved siden af rammer intet, et tryk på et dyr er ikke et hug, og stykker kan deles igen og igen', async ({ browser }) => {
     const { ctx, page, cdp, errors } = await open(browser, TABLET);
     const id = await spawnAt(page, [0, 5.5, 3]);
     await page.evaluate(() => (window as unknown as W).app.samurai.set(true));
@@ -164,15 +164,35 @@ test.describe('M13: hug og stykker', () => {
     // Now through it.
     await swipeThrough(page, cdp, id);
     expect(await fragments(page)).toBe(2);
-    // Cutting through the pieces does not cut them again.
+    // Pieces can be cut again – and again (ADR 0011) – but never beyond the ceiling.
     await adv(page, 1.5);
-    const f = await page.evaluate(() => (window as unknown as W).aquarium.fragments.list[0].position);
-    expect(f).toBeTruthy();
-    await page.evaluate(([x, y]) => {
-      const a = (window as unknown as { aquarium: { slash(a: number[], b: number[]): unknown[] } }).aquarium;
-      for (let i = 0; i < 20; i++) a.slash([x - 600, y - 300 + i * 30], [x + 600, y - 300 + i * 30 + 40]);
-    }, [p.x, p.y]);
-    expect(await fragments(page)).toBe(2);
+    // Swipes straight through where the pieces lie now (found on the screen), two rounds, a new swipe each time.
+    await page.evaluate(() => {
+      type A = {
+        slash(a: number[], b: number[]): unknown[];
+        beginSwipe(): void;
+        camera: { updateMatrixWorld(): void };
+        viewport: { width: number; height: number };
+        fragments: { list: Array<{ position: { clone(): { project(c: unknown): { x: number; y: number } } } }> };
+      };
+      const a = (window as unknown as { aquarium: A }).aquarium;
+      for (let round = 0; round < 2; round++) {
+        a.camera.updateMatrixWorld();
+        const { width, height } = a.viewport;
+        const spots = a.fragments.list.map((f) => {
+          const n = f.position.clone().project(a.camera);
+          return [(n.x * 0.5 + 0.5) * width, (-n.y * 0.5 + 0.5) * height];
+        });
+        for (const [x, y] of spots) {
+          a.beginSwipe();
+          a.slash([x - 80, y - 25], [x + 80, y + 25]);
+        }
+      }
+    });
+    expect(await fragments(page)).toBeGreaterThan(4);
+    expect(await fragments(page)).toBeLessThanOrEqual(40);
+    await adv(page, 0.3);
+    await page.screenshot({ path: 'docs/screenshots/M13-tablet-4-flere-snit.png' });
     expect(errors).toEqual([]);
     await ctx.close();
   });

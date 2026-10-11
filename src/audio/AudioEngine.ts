@@ -4,6 +4,14 @@ import { ambience, blip, bloop, bubbleSchedule, bubbles, COUNTDOWN_PLING, crayon
 const STORAGE_KEY = 'akvariet.muted';
 
 /** The few things the engine needs from the browser, so it can be exercised without one. */
+/** Seconds of near-silence at the start of a recording (kept 15 ms short of the first audible sample). */
+export function leadingSilence(data: Float32Array, sampleRate: number, threshold = 0.02): number {
+  for (let i = 0; i < data.length; i++) {
+    if (Math.abs(data[i]) > threshold) return Math.max(0, i / sampleRate - 0.015);
+  }
+  return 0;
+}
+
 export interface AudioEnv {
   createContext(): AudioContext | null;
   load(): string | null;
@@ -49,6 +57,8 @@ export class AudioEngine {
   private readonly samples = new Map<string, AudioBuffer[]>();
   private readonly lastSample = new Map<string, number>();
   private readonly sampleEnds = new Map<string, number>();
+  private readonly onsets = new WeakMap<AudioBuffer, number>();
+  private watchdog: number | undefined;
   private blipTimer: number | undefined;
   private readonly rng: Rng;
   onMutedChange?: (muted: boolean) => void;
@@ -89,6 +99,10 @@ export class AudioEngine {
         });
       }, 0);
       document.addEventListener('visibilitychange', this.onVisibility);
+      // The browser (or the phone: a call, the lock screen, a memory squeeze) may stop the audio without telling the game: keep nudging it back.
+      this.watchdog = window.setInterval(() => {
+        if (this.ctx && !this.muted && !document.hidden && this.ctx.state !== 'running') void this.safe(() => this.ctx?.resume());
+      }, 3000);
     });
   }
 
@@ -153,7 +167,9 @@ export class AudioEngine {
       try {
         const res = await fetch(`${base}sounds/${name}-${i}.mp3`);
         if (!res.ok || !(res.headers.get('content-type') ?? '').includes('audio')) continue;
-        have.push(await ctx.decodeAudioData(await res.arrayBuffer()));
+        const buffer = await ctx.decodeAudioData(await res.arrayBuffer());
+        have.push(buffer);
+        this.onsets.set(buffer, leadingSilence(buffer.getChannelData(0), buffer.sampleRate));
       } catch {
         /* missing or not decodable: skipped */
       }
@@ -181,8 +197,10 @@ export class AudioEngine {
       const g = ctx.createGain();
       g.gain.value = 0.9;
       src.connect(g).connect(master);
-      src.start();
-      this.sampleEnds.set(name, ctx.currentTime + src.buffer.duration);
+      // Recordings begin with a moment of silence: skip it, so the shout lands with the cut.
+      const onset = this.onsets.get(src.buffer) ?? 0;
+      src.start(0, onset);
+      this.sampleEnds.set(name, ctx.currentTime + src.buffer.duration - onset);
       this.played.push(`sample:${name}-${pick + 1}`);
       if (this.played.length > 200) this.played.shift();
     });
@@ -235,6 +253,7 @@ export class AudioEngine {
   /** Stops everything (tests; the game itself never needs this). */
   dispose(): void {
     window.clearTimeout(this.blipTimer);
+    window.clearInterval(this.watchdog);
     this.amb?.stop();
     this.amb = null;
     document.removeEventListener('visibilitychange', this.onVisibility);

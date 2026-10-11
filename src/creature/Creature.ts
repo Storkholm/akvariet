@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { createCreatureShader } from './material';
 import { Swimmer, type SwimBounds } from './swimmer';
+import { Crawler } from './crawler';
+import { GlassClimb } from './glass';
+import { UrchinSpikes } from './spikes';
+import { timeUniform } from '../aquarium/materials';
 import { Reaction, pickKind, type ReactionKind } from './reaction';
 import { Transition } from './Transition';
 import type { Species, Template } from '../species/types';
@@ -32,6 +36,10 @@ export class Creature {
   leaving: { dir: number; t: number } | null = null;
   /** CONTEXT: Glædeshop – set while it hops or somersaults after a tap. */
   reaction: Reaction | null = null;
+  /** CONTEXT: Ruden – set for species that now and then crawl up the glass in front of the picture (starfish). */
+  readonly glass: GlassClimb | null;
+  /** The 3D spikes of a sea urchin. */
+  readonly spikes: UrchinSpikes | null = null;
   /** Saved creatures grow into view one by one after the page has loaded, instead of all popping up at once. */
   private appear: { delay: number; t: number } | null = null;
 
@@ -67,6 +75,11 @@ export class Creature {
     this.mesh = new THREE.Mesh(geometry, this.material);
     this.mesh.frustumCulled = false;
     this.group.add(this.mesh);
+    if (template.species === 'seaUrchin') {
+      this.spikes = new UrchinSpikes(geometry, this.drawing, template.size, () => rng.next());
+      this.mesh.add(this.spikes.mesh);
+    }
+    this.glass = template.swim.glass ? new GlassClimb(rng) : null;
     this.phase = rng.range(0, Math.PI * 2);
   }
 
@@ -139,8 +152,8 @@ export class Creature {
     if (u >= 1) this.appear = null;
   }
 
-  get mode(): 'transition' | 'swim' | 'farewell' {
-    return this.leaving ? 'farewell' : this.transition ? 'transition' : 'swim';
+  get mode(): 'transition' | 'swim' | 'farewell' | 'glass' {
+    return this.leaving ? 'farewell' : this.transition ? 'transition' : this.glass?.onGlass ? 'glass' : 'swim';
   }
 
   /** A tap: hop or somersault. Ignored while it is being released, saying goodbye, or already reacting. */
@@ -163,7 +176,8 @@ export class Creature {
 
   /** Starts free swimming at a given pose (used by the Transition hand-over and when loading saved creatures). */
   startSwimming(pos: [number, number, number], yaw: number, pitch: number, speed: number): void {
-    this.swimmer = new Swimmer(this.template.swim, this.rng, { pos, yaw, pitch, speed });
+    const Mover = this.template.swim.crawl ? Crawler : Swimmer;
+    this.swimmer = new Mover(this.template.swim, this.rng, { pos, yaw, pitch, speed });
     this.uniforms.uFlap.value = 1;
     this.applySwimmerPose();
   }
@@ -196,6 +210,7 @@ export class Creature {
     const { flapHz } = this.template.swim;
     this.phase += dt * Math.PI * 2 * flapHz * (0.75 + 0.25 * speed);
     this.uniforms.uPhase.value = this.phase;
+    this.spikes?.update(timeUniform.value, this.uniforms.uFlap.value);
   }
 
   /** The hop/somersault rides on top of whatever the swimmer does: a lift along world up and a flip about the wing axis. */
@@ -228,9 +243,46 @@ export class Creature {
     this.group.position.y += 0.15 * dt;
   }
 
+  /**
+   * CONTEXT: Ruden. Called after the camera has been placed: a starfish on its way up the glass is laid on the glass in front of the
+   * lens (so it does not trail behind a moving camera) and drawn on top of the reef.
+   */
+  stepGlass(dt: number, camera: THREE.PerspectiveCamera, allowed: boolean): void {
+    const g = this.glass;
+    if (!g) return;
+    const ok = allowed && !this.leaving && !this.transition && !this.appear && this.group.visible;
+    g.update(dt, ok);
+    const onTop = g.onGlass;
+    if (this.material.depthTest === onTop) {
+      this.material.depthTest = !onTop;
+      this.mesh.renderOrder = onTop ? 999 : 0;
+    }
+    if (g.phase === 'leave' || g.phase === 'return') this.group.scale.setScalar(Math.max(0.001, g.scale));
+    else if (!g.away && this.group.scale.x !== 1 && !this.appear) this.group.scale.setScalar(1);
+    if (!onTop) return;
+    camera.updateMatrixWorld();
+    const tanHalf = Math.tan((camera.fov * Math.PI) / 360) / camera.zoom;
+    const distance = (this.template.size * 0.92) / (0.2 * 2 * tanHalf);
+    const q = camera.getWorldQuaternion(new THREE.Quaternion());
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
+    this.group.position
+      .copy(camera.position)
+      .addScaledVector(fwd, distance)
+      .addScaledVector(up, g.y * distance * tanHalf)
+      .addScaledVector(right, g.x * distance * tanHalf * camera.aspect);
+    // Back towards the viewer, head up the screen (as in the transition), turned a little about the viewing direction.
+    this.group.quaternion
+      .copy(q)
+      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2))
+      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), g.spin));
+    this.group.scale.setScalar(1);
+  }
+
   private applySwimmerPose(): void {
     const s = this.swimmer;
-    if (!s) return;
+    if (!s || this.glass?.away) return;
     this.group.position.set(s.pos[0], s.pos[1], s.pos[2]);
     this.group.rotation.set(s.pitch, s.yaw, s.roll, 'YXZ');
   }
@@ -240,6 +292,7 @@ export class Creature {
       this.texture.dispose();
       this.fullTexture?.dispose();
     }
+    this.spikes?.dispose();
     this.material.dispose();
   }
 }

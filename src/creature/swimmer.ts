@@ -40,7 +40,7 @@ export class Swimmer {
 
   constructor(
     readonly params: SwimParams,
-    private readonly rng: Rng,
+    protected readonly rng: Rng,
     init: { pos: Vec3; yaw: number; pitch: number; speed: number },
   ) {
     this.pos = [...init.pos];

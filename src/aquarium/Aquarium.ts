@@ -14,7 +14,8 @@ import { timeUniform } from './materials';
 import { PickerBubbles } from './PickerBubbles';
 import { CleanupSharks, type Living } from '../samurai/CleanupSharks';
 import type { Fragment } from '../samurai/Fragment';
-import { Fragments } from '../samurai/Fragments';
+import { Fragments, MAX_PIECES } from '../samurai/Fragments';
+import { createRng } from '../util/random';
 import { cutPlane, type P2 } from '../samurai/slashGeometry';
 import { buildReef, type Reef } from './reef';
 
@@ -168,6 +169,7 @@ export class Aquarium {
 
   /** CONTEXT: Følg – the camera follows this creature (double tap), or stops following with null. */
   follow(creature: Creature | null): void {
+    if (creature?.glass?.onGlass) return; // it is stuck to the glass in front of the lens: nothing to follow
     if (this.followed && this.followed !== creature) this.followed.setFullDetail(false);
     this.followed = creature;
     creature?.setFullDetail(true);
@@ -207,16 +209,39 @@ export class Aquarium {
    * direction. Every creature the swipe crosses is cut in two along that line: it leaves the water and its two pieces take its place.
    * Returns the creatures that were cut.
    */
+  /** How many already cut pieces the last swipe cut again. */
+  piecesCut = 0;
+  private swipeId = 0;
+
+  /** A new swipe begins (finger down): pieces made by the previous swipe can be cut by this one. */
+  beginSwipe(): void {
+    this.swipeId++;
+  }
+  private readonly cutRng = createRng(0x5a4d);
+
   slash(a: P2, b: P2, from: P2 = a): Creature[] {
     const viewport = this.viewport;
+    this.piecesCut = 0;
     const hit = this.creatures.crossed(a, b, viewport);
-    if (hit.length === 0) return [];
     const line = from[0] === b[0] && from[1] === b[1] ? a : from;
     const plane = cutPlane(this.camera, line, b, viewport) ?? cutPlane(this.camera, a, [b[0] + 1, b[1] + 1], viewport);
     if (!plane) return [];
+    // Pieces that are already lying about can be cut again, as often as the child likes (ADR 0011) – up to a ceiling.
+    for (const f of [...this.fragments.list]) {
+      if (this.fragments.count + 1 > MAX_PIECES) break;
+      if (f.swipe === this.swipeId || !f.crossedBy(a, b, this.camera, viewport)) continue;
+      this.bursts.emit(f.position, 14, 0.4);
+      const halves = f.splitAlong(plane, () => this.cutRng.next());
+      for (const h of halves) h.swipe = this.swipeId;
+      this.fragments.replace(f, ...halves);
+      this.piecesCut++;
+    }
+    if (hit.length === 0) return [];
     for (const c of hit) {
       this.bursts.emit(c.group.position, 22, c.template.size * 0.3);
-      this.fragments.add(...this.creatures.cut(c, plane));
+      const halves = this.creatures.cut(c, plane);
+      for (const h of halves) h.swipe = this.swipeId;
+      this.fragments.add(...halves);
     }
     return hit;
   }
@@ -263,6 +288,8 @@ export class Aquarium {
     this.rays.update(this.elapsed);
     this.particles.update(dt, this.elapsed);
     this.placeCamera();
+    this.camera.updateMatrixWorld();
+    this.creatures.updateGlass(dt, this.followed);
     this.pickerBubbles.update(dt, this.elapsed);
     this.bursts.update(dt, this.elapsed);
     // ADR 0006: what is outside the picture is not drawn.

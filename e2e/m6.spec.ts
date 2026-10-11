@@ -91,7 +91,7 @@ test('M6: no sound before the first tap; the first tap unlocks it; the crayons p
 
   await openPanel(page);
   const crayons = page.locator('.crayon');
-  expect(await crayons.count()).toBe(14);
+  expect(await crayons.count()).toBe(15);
   await crayons.nth(0).click({ force: true });
   await crayons.nth(5).click({ force: true });
   expect((await played(page)).filter((p) => p === 'pling').length).toBeGreaterThanOrEqual(2);

@@ -26,6 +26,8 @@ export class SamuraiMode {
   /** The mode began or ended. */
   onChange?: (active: boolean) => void;
   /** A swipe segment a→b (pixels on the canvas); `from` is a point further back that gives the line its direction. Returns how many creatures were cut. */
+  /** A finger went down on the water: a new swipe begins. */
+  onSwipeStart?: () => void;
   onSlash?: (a: P2, b: P2, from: P2) => number;
   /** The count of cut creatures just went up. */
   onCounted?: () => void;
@@ -137,6 +139,7 @@ export class SamuraiMode {
     this.pointer = e.pointerId;
     const [x, y] = this.local(e);
     this.points = [{ x, y, t: performance.now() }];
+    this.onSwipeStart?.();
   };
 
   private readonly onMove = (e: PointerEvent): void => {

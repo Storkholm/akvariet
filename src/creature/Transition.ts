@@ -1,3 +1,4 @@
+import { terrainHeight } from '../aquarium/terrain';
 import * as THREE from 'three';
 import type { Template } from '../species/types';
 import type { Rng } from '../util/random';
@@ -64,6 +65,8 @@ export class Transition {
     rect: ViewRect,
     bounds: SwimBounds,
     rng: Rng,
+    /** A bottom dweller: the flight ends just above the sand instead of in mid-water. */
+    landing = false,
   ) {
     camera.updateMatrixWorld();
     // The lens may be zoomed in (ADR 0006): what matters is the field of view it really has.
@@ -95,6 +98,10 @@ export class Transition {
     this.p2.x = Math.min(bounds.max[0] - 1, Math.max(bounds.min[0] + 1, this.p2.x));
     this.p2.z = Math.min(bounds.max[2] - 1, Math.max(bounds.min[2] + 1, this.p2.z));
     this.p2.y = Math.min(bounds.max[1] - 1, Math.max(this.p2.y, 4.8));
+    if (landing) {
+      this.p2.z = Math.min(3, Math.max(-8, this.p2.z));
+      this.p2.y = terrainHeight(this.p2.x, this.p2.z) + 1.4;
+    }
     this.flightTarget.copy(this.p2);
     // The first leg goes "up the screen": that is the way the head points on the flat drawing.
     this.p1.copy(this.p0).addScaledVector(this.camUp, 0.9);

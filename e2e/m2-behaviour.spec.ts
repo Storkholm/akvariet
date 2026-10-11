@@ -153,7 +153,7 @@ test('touch targets are at least 48 px', async ({ browser }) => {
       expect(b.left, `${b.label} inside screen @${size.width}`).toBeGreaterThanOrEqual(-0.5);
       expect(b.right, `${b.label} inside screen @${size.width}`).toBeLessThanOrEqual(size.width + 0.5);
     }
-    expect(boxes.length).toBeGreaterThanOrEqual(21); // 14 crayons + home + undo + eraser/bucket + 3 brushes + release (+ sound, + fullscreen)
+    expect(boxes.length).toBeGreaterThanOrEqual(22); // 15 crayons + home + undo + eraser/bucket + 3 brushes + release (+ sound, + fullscreen)
     await t.ctx.close();
   }
 });
