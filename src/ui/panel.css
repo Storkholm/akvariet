@@ -85,6 +85,7 @@
 }
 .canvas-wrap {
   position: relative;
+  overflow: hidden;
   filter: drop-shadow(0 8px 22px rgba(0, 30, 80, 0.45));
 }
 .canvas-wrap canvas {
@@ -750,3 +751,157 @@
     display: none;
   }
 }
+
+/* ---------- carousel arrows: only for a mouse (hover + fine pointer); touch screens swipe ---------- */
+.carousel-arrow {
+  display: none;
+  position: absolute;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  margin-top: -26px;
+  padding: 0;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: rgba(14, 80, 150, 0.78);
+  box-shadow: 0 3px 10px rgba(0, 30, 70, 0.35);
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 2;
+}
+.carousel-arrow::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border: solid #fff;
+  border-width: 0 5px 5px 0;
+  border-radius: 2px;
+}
+.carousel-arrow.next::after { transform: translate(-70%, -50%) rotate(-45deg); }
+.carousel-arrow.prev::after { transform: translate(-30%, -50%) rotate(135deg); }
+.carousel-arrow.prev { left: 14px; }
+.carousel-arrow.next { right: 14px; }
+.carousel-arrow:hover:not(:disabled) { background: rgba(14, 80, 150, 0.95); }
+.carousel-arrow:disabled { opacity: 0.25; cursor: default; }
+.carousel-arrow:focus-visible { outline: 4px solid #ffd166; outline-offset: 2px; }
+.picker.inert .carousel-arrow { pointer-events: none; opacity: 0; }
+@media (hover: hover) and (pointer: fine) {
+  .carousel-arrow { display: block; }
+}
+
+/* ---------- M9: zoom, the tray's second page (patterns and stamps), tray tabs ---------- */
+.drawing-canvas {
+  will-change: transform;
+}
+.panel.space .stage,
+.panel.space .stage * {
+  cursor: grab;
+}
+.panel.panning .stage,
+.panel.panning .stage * {
+  cursor: grabbing;
+}
+.crayons[hidden],
+.patterns[hidden],
+.fit-btn[hidden] {
+  display: none !important;
+}
+.top-right-buttons {
+  display: contents;
+}
+.top-right-buttons .undo-btn { order: 1; }
+.tabs { order: 3; display: flex; gap: 12px; }
+.round-btn[aria-pressed='true'] {
+  background: rgba(255, 255, 255, 0.9);
+  color: #2f6fb8;
+  border-color: #fff;
+}
+.round-btn .icon { display: block; width: 100%; height: 100%; }
+
+/* The second page: a swatch with the chosen colour, 4 patterns and 10 stamps. Landscape: a wooden shelf above the bar, where the crayons stand. */
+.patterns {
+  position: absolute;
+  left: max(14px, env(safe-area-inset-left));
+  bottom: calc(var(--bar-h) + 10px);
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100vw - 28px);
+  padding: 8px 10px;
+  border-radius: 22px;
+  background: linear-gradient(#f6e2b0, #e6c987);
+  border: 3px solid #fff4d2;
+  box-shadow: 0 -2px 10px rgba(0, 30, 70, 0.25);
+}
+.pick-btn,
+.swatch {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  padding: 4px;
+  border-radius: 14px;
+  border: 2px solid rgba(110, 80, 30, 0.28);
+  background: rgba(255, 255, 255, 0.7);
+}
+.pick-btn canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.pick-btn[aria-pressed='true'] {
+  background: #fff;
+  border-color: #2f86d6;
+  box-shadow: 0 0 0 2px rgba(47, 134, 214, 0.35), 0 3px 6px rgba(0, 0, 0, 0.18);
+  transform: translateY(-3px);
+}
+.swatch {
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background: var(--c, #e8332a);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+@media (orientation: portrait), (max-width: 760px) {
+  .patterns {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(7, var(--pitch)) var(--cw);
+    justify-content: center;
+    gap: 6px 0;
+    max-width: none;
+    padding: 12px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+  .pick-btn,
+  .swatch {
+    justify-self: center;
+  }
+  /* Home, then the two tabs, to the left of the sound and fullscreen buttons; undo stays in the right corner. */
+  .top-buttons { justify-content: flex-start; gap: 4px; }
+  .top-right-buttons { display: flex; margin-left: auto; }
+  .tabs { order: 0; gap: 4px; }
+}
+
+/* "Hele dyret": floats over the bottom corner of the drawing while it is zoomed in. */
+.canvas-wrap .fit-btn {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  width: 52px;
+  height: 52px;
+  padding: 11px;
+  border-radius: 16px;
+  border: 3px solid #fff;
+  background: rgba(20, 70, 130, 0.72);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(0, 30, 80, 0.35);
+}
+.canvas-wrap .fit-btn:active { background: rgba(20, 70, 130, 0.92); }

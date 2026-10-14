@@ -81,7 +81,7 @@ export class CreatureManager {
   }
 
   /** Puts an already swimming creature into the water (used for saved creatures in M4 and by tests). */
-  spawn(drawing: HTMLCanvasElement, species: Species, pos?: [number, number, number], yaw?: number, meta?: { id?: string; createdAt?: number }): Creature {
+  spawn(drawing: HTMLCanvasElement, species: Species, pos?: [number, number, number], yaw?: number, meta?: { id?: string; createdAt?: number; fullLoader?: () => Promise<HTMLCanvasElement | null> }): Creature {
     const template = getTemplate(species);
     const creature = new Creature(template, this.body(species), drawing, undefined, this.maxAnisotropy, meta);
     const r = creature.rng;

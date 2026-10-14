@@ -128,8 +128,11 @@ test.describe('M13: hug og stykker', () => {
     const before = await living(page);
     await swipeThrough(page, cdp, target);
     await adv(page, 0.05);
-    expect(await living(page)).toBe(before - 1);
-    expect(await fragments(page)).toBe(2);
+    // (A neighbour that happens to swim along the same line is cut by the same swipe: always two pieces per creature.)
+    const cut = before - (await living(page));
+    expect(cut).toBeGreaterThanOrEqual(1);
+    expect(await fragments(page)).toBe(2 * cut);
+    expect(await page.evaluate((id) => !!(window as unknown as W).aquarium.creatures.creatures.find((k) => k.id === id), target)).toBe(false);
     // The swipe drew a glowing trail (it fades in 0.3 s, so the test looks at how long it got).
     expect(await page.evaluate(() => (window as unknown as W).app.samurai.trailPeak)).toBeGreaterThan(2);
     await page.screenshot({ path: 'docs/screenshots/M13-tablet-2-hug.png' });

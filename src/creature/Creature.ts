@@ -49,6 +49,9 @@ export class Creature {
   /** The drawing at the size it was made (when larger than the kept 512×512): used while the camera follows this creature. */
   private fullSource: HTMLCanvasElement | null;
   private fullTexture: THREE.CanvasTexture | null = null;
+  /** Fetches the stored full-size drawing again, when it is needed and no longer kept in memory (saved creatures). */
+  private readonly fullLoader: (() => Promise<HTMLCanvasElement | null>) | null;
+  private wantsFull = false;
   private readonly material: THREE.MeshLambertMaterial;
   private readonly uniforms: { uPhase: { value: number }; uFlap: { value: number }; uTurn: { value: number } };
   private phase: number;
@@ -59,13 +62,14 @@ export class Creature {
     drawingCanvas: HTMLCanvasElement,
     readonly rng: Rng = createRng((Math.random() * 2 ** 32) >>> 0),
     maxAnisotropy = 4,
-    meta: { id?: string; createdAt?: number } = {},
+    meta: { id?: string; createdAt?: number; fullLoader?: () => Promise<HTMLCanvasElement | null> } = {},
   ) {
     this.id = meta.id ?? newId();
     this.createdAt = meta.createdAt ?? Date.now();
     this.species = template.species;
     this.drawing = downscaleDrawing(drawingCanvas, 512);
     this.fullSource = drawingCanvas.width > 512 ? drawingCanvas : null;
+    this.fullLoader = meta.fullLoader ?? null;
     // A full-size canvas is 4 MB: it is only kept for a minute (a child may release many creatures in one visit).
     // From M9 the full drawing is stored (ADR 0009), and then it can be fetched when a creature is followed.
     if (this.fullSource) globalThis.setTimeout(() => (this.fullSource = this.fullTexture ? this.fullSource : null), 60_000);
@@ -94,6 +98,17 @@ export class Creature {
    * released in this visit now, for saved ones once they are stored in full size (ADR 0009, M9).
    */
   setFullDetail(on: boolean): void {
+    this.wantsFull = on;
+    if (!this.fullSource && on && this.fullLoader) {
+      // Not in memory any more: fetch it from the store; it is applied when it arrives, if the camera still follows this creature.
+      void this.fullLoader().then((canvas) => {
+        if (!canvas || this.fullSource) return;
+        this.fullSource = canvas;
+        globalThis.setTimeout(() => (this.fullSource = this.fullTexture ? this.fullSource : null), 60_000);
+        if (this.wantsFull) this.setFullDetail(true);
+      }).catch(() => undefined);
+      return;
+    }
     if (!this.fullSource) return;
     if (on && !this.fullTexture) {
       this.fullTexture = createCreatureTexture(this.fullSource, this.template, this.texture.anisotropy);

@@ -21,9 +21,9 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Farveblyant** | `Crayon` | Én af de 15 farver i bakken nederst til venstre (v2: + grå, hvid og regnbue). Den valgte blyant stikker længere frem end de andre. |
 | **Regnbueblyant** | `rainbow` | Blyant hvis farve løber gennem regnbuen langs stregen. |
 | **Bakkeside** | `TrayPage` | Bakken har to sider – blyanter og mønstre – som man skifter mellem med swipe eller små faner. |
-| **Stempel** | `Stamp` | En figur (stjerne, hjerte …) der sættes med ét tryk i den valgte farve. |
-| **Mønsterfyld** | `PatternFill` | Som fyld-spanden, men fylder med et mønster (striber, prikker, skæl, zigzag). |
-| **Zoom** | `DrawingZoom` | Knib/to-finger-træk på tegnefladen, 1×–4×. Stregtykkelser er i skærm-pixel. |
+| **Stempel** | `Stamp` (`stamps.ts`) | En figur (stjerne, hjerte …) der sættes med ét tryk i den valgte farve. |
+| **Mønsterfyld** | `PatternFill` (`patterns.ts`, værktøjet `pattern`) | Som fyld-spanden, men fylder med et mønster (striber, prikker, skæl, zigzag). |
+| **Zoom** | `View` (`viewTransform.ts`) | Knib/to-finger-træk på tegnefladen, 1×–4× (mus: hjul, mellemste knap, mellemrum+træk; tasterne + − 0). Stregtykkelser, stempler og viskelæder er i skærm-pixel. En "Hele dyret"-knap svæver over tegningen, når der er zoomet. |
 | **Navn** | `name` | Valgfrit navn på et dyr (højst 12 tegn), skrives i navnefeltet på tegnefladen. |
 | **Navneskilt** | `NameTag` | Lille skilt over et dyr med dets navn, ved glædeshop og når kameraet følger det. |
 | **Nedtælling** | `ReleaseCountdown` | Det store 3-2-1 midt på skærmen, mens man holder Slip løs nede. Slipper man før tid, sker intet. |
@@ -41,7 +41,7 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Baggrundsliv** | `AmbientLife` | Simple fiskestimer og bevægelige planter der ikke er tegnet af barnet og ikke gemmes. |
 | **Rev** | `Reef` | Akvariets faste pynt på bunden: koraller, planter, sten og sand. Bygges i kode (seedet), ikke tegnet af barnet. Fra v2 bygget i **bidder** langs bredden, så kun det synlige tegnes (ADR 0006). |
 | **Fiskestime** | `FishSchool` | Én flok af baggrundslivet (boids) der tegnes med instancing. Akvariet har flere stimer med hver sin fiskeart. |
-| **Glædeshop** | `react()` | Det et dyr gør, når man trykker på det i akvariet: lille hop (60 %) eller salto (40 %) + bobler (`BubbleBursts`) + lyd. Et tryk lige ved siden af tæller også. |
+| **Glædeshop** | `react()` | Det et dyr gør, når man trykker på det i akvariet: lille hop (60 %) eller salto (40 %) + bobler (`BubbleBursts`) + lyd (familiens "wee", `wee1…4.mp3`, ADR 0012; ellers en boblelyd). Et tryk lige ved siden af tæller også. |
 | **Svømmer** | `Swimmer` | Bevægelsestilstanden for ét dyr i akvariet: position, retning, fart og næste mål. Ren logik uden tegning; styrer uden om sand, overflade, vægge og andre dyr. |
 | **Pigge** | `UrchinSpikes` | Søpindsvinets 3D-pigge (instancing), farvet efter tegningen ved hver piggs rod; de vifter let. |
 | **Overgang** | `Transition` | Øjeblikket efter Slip løs: den flade tegning bliver til krop på samme sted og i samme størrelse, folder sig ud, drejer og svømmer ind i akvariet. |
@@ -50,6 +50,7 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Afsked** | `farewell()` | Når akvariet er fuldt og et nyt dyr kommer ind, svømmer det ældste dyr ud af billedet og slettes. |
 | **Lyd** | `AudioEngine` | Alle lyde, lavet med Web Audio i koden (ingen lydfiler): en blød tone pr. farveblyant (15 toner i en pentatonisk skala fra A3) og en tone pr. tal i nedtællingen, svup ved Slip løs, pop ved boblen, bobler ved glædeshop, bloop ved sletning og en svag underlig brummen i vandet. Starter først efter første tryk; lydknappen (højttaler, øverst til højre) slår det fra, og valget huskes. |
 | **Voksentilstand** | `AdultMode` | Skjult tilstand (hold låse-ikonet nede i 3 sek.), hvor man kan slette enkelte dyr og få hjælp til fuldskærm. Er aldrig tændt samtidig med samurai-mode. |
+| **Piletaster** | `KeyboardControls` | På computer: piletaster/WASD glider kameraet, +/− zoomer, Home nulstiller; ← → ruller artsrækken, mens den er fremme. Artsrækken har pile-knapper og kan rulles med musehjulet. ADR 0013. |
 | **Samurai-mode** | `SamuraiMode` | Tilstand (hold sværd-knappen i 2 sek.), hvor swipe er sværdhug. ADR 0008. |
 | **Hug** | `slash()` | Ét sværdhug: et lysende spor; dyr det krydser, deles i to stykker og slettes. |
 | **Stykke** | `Fragment` | En del af et hugget dyr. Synker til bunds; gemmes aldrig. Kan hugges igen og igen (ADR 0011; højst 40 ad gangen). |

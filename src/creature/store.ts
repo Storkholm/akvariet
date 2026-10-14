@@ -7,6 +7,8 @@ export interface StoredCreature {
   species: Species;
   drawing: Blob;
   createdAt: number;
+  /** 2 from M9 (1024×1024 drawing, ADR 0009); missing for creatures saved earlier (512×512). */
+  version?: number;
 }
 
 /** CONTEXT: Dyrelager. Where creatures are kept between visits (ADR 0002: IndexedDB on this device). */
