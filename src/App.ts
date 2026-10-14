@@ -5,7 +5,7 @@ import { CreatureKeeper } from './creature/keeper';
 import { createCreatureStore } from './creature/store';
 import type { Drawing } from './drawing/Drawing';
 import { SPECIES, type Species } from './species';
-import { AudioEngine } from './audio/AudioEngine';
+import { AudioEngine, SKIP_TO_LOUD } from './audio/AudioEngine';
 import { AdultMode } from './ui/AdultMode';
 import { DrawingPanel } from './ui/DrawingPanel';
 import { FullscreenButton } from './ui/FullscreenButton';
@@ -98,7 +98,8 @@ export class App {
         this.viewToggle.setAvailable(false);
         this.adult.setAvailable(false);
         this.audio.gong();
-        for (const name of ['kiai', 'haj']) void this.audio.loadSamples(name, import.meta.env.BASE_URL);
+        void this.audio.loadSamples('kiai', import.meta.env.BASE_URL, SKIP_TO_LOUD); // (a shout must land with the cut)
+        void this.audio.loadSamples('haj', import.meta.env.BASE_URL);
       } else {
         this.picker.setFolded(foldedBefore);
         this.viewToggle.setAvailable(true);

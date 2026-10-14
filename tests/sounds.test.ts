@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bubbleSchedule, crayonFrequency, fillNoise, PENTATONIC } from '../src/audio/sounds';
-import { leadingSilence } from '../src/audio/AudioEngine';
+import { leadingSilence, SKIP_SILENCE, SKIP_TO_LOUD } from '../src/audio/AudioEngine';
 import { createRng } from '../src/util/random';
 
 describe('crayon notes', () => {
@@ -80,10 +80,34 @@ describe('fillNoise', () => {
   });
 });
 
+describe('leadingSilence: loudness, not single samples', () => {
+  const rate = 48000;
+  const recording = (): Float32Array => {
+    // 0.3 s of faint hiss with one click at 0.1 s, then a breath (RMS ≈ 0.04) until 0.9 s, then a loud shout.
+    const d = new Float32Array(rate * 2);
+    for (let i = 0; i < d.length; i++) {
+      const t = i / rate;
+      d[i] = t < 0.9 ? 0.003 * Math.sin(i * 0.9) + (t > 0.3 ? 0.055 * Math.sin(i * 0.31) : 0) : 0.6 * Math.sin(i * 0.2);
+    }
+    d[Math.round(0.1 * rate)] = 0.3;
+    return d;
+  };
+
+  it('a click in the silence does not count as the start', () => {
+    expect(leadingSilence(recording(), rate, SKIP_SILENCE)).toBeGreaterThan(0.25);
+  });
+
+  it('shouts skip the breath too and start just before the loud part', () => {
+    const t = leadingSilence(recording(), rate, SKIP_TO_LOUD);
+    expect(t).toBeGreaterThan(0.85);
+    expect(t).toBeLessThan(0.9);
+  });
+});
+
 describe('leadingSilence', () => {
   it('finds the first audible sample, a little early', () => {
     const data = new Float32Array(48000);
-    data[12000] = 0.5;
+    data.fill(0.5, 12000, 12480); // 10 ms of sound from 0.25 s
     expect(leadingSilence(data, 48000)).toBeCloseTo(0.25 - 0.015, 3);
   });
   it('is 0 for a recording that starts at once or is silent', () => {

@@ -4,13 +4,24 @@ import { ambience, blip, bloop, bubbleSchedule, bubbles, COUNTDOWN_PLING, crayon
 const STORAGE_KEY = 'akvariet.muted';
 
 /** The few things the engine needs from the browser, so it can be exercised without one. */
-/** Seconds of near-silence at the start of a recording (kept 15 ms short of the first audible sample). */
+/**
+ * Seconds before the recording really starts: the first 10 ms stretch whose loudness (RMS) passes `threshold`, less 15 ms. Loudness, not
+ * the single loudest sample: a click or a bit of hiss in the quiet start must not count as the beginning. A threshold of 0.02 skips
+ * only the silence; 0.08 skips breaths and hiss as well, so a shout lands with the cut (kiai-1.mp3 has 0.95 s before the shout).
+ */
 export function leadingSilence(data: Float32Array, sampleRate: number, threshold = 0.02): number {
-  for (let i = 0; i < data.length; i++) {
-    if (Math.abs(data[i]) > threshold) return Math.max(0, i / sampleRate - 0.015);
+  const win = Math.max(1, Math.round(sampleRate * 0.01));
+  for (let i = 0; i + win <= data.length; i += win) {
+    let sum = 0;
+    for (let j = i; j < i + win; j++) sum += data[j] * data[j];
+    if (Math.sqrt(sum / win) > threshold) return Math.max(0, i / sampleRate - 0.015);
   }
   return 0;
 }
+
+/** How much of the start of a family of recordings is skipped: only the silence, or everything before the loud part (shouts). */
+export const SKIP_SILENCE = 0.02;
+export const SKIP_TO_LOUD = 0.08;
 
 export interface AudioEnv {
   createContext(): AudioContext | null;
@@ -157,7 +168,7 @@ export class AudioEngine {
    * Loads the family's recordings `<name>-1.mp3` … `<name>-4.mp3` (or `<name>1.mp3` …) from `public/sounds/` (ADR 0007). Files that are not there
    * are simply skipped: the game works with any number of them, also none. Safe to call again.
    */
-  async loadSamples(name: string, base = ''): Promise<number> {
+  async loadSamples(name: string, base = '', skip = SKIP_SILENCE): Promise<number> {
     if (!this.ctx) return 0;
     const ctx = this.ctx;
     const have = this.samples.get(name) ?? [];
@@ -171,7 +182,7 @@ export class AudioEngine {
           if (!res.ok || !(res.headers.get('content-type') ?? '').includes('audio')) continue;
           const buffer = await ctx.decodeAudioData(await res.arrayBuffer());
           have.push(buffer);
-          this.onsets.set(buffer, leadingSilence(buffer.getChannelData(0), buffer.sampleRate));
+          this.onsets.set(buffer, leadingSilence(buffer.getChannelData(0), buffer.sampleRate, skip));
           break;
         } catch {
           /* missing or not decodable: skipped */
