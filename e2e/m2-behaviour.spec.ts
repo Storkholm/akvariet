@@ -69,14 +69,17 @@ test('fyld-spand stops at strokes; viskelæder paints the base colour back', asy
   await ctx.close();
 });
 
-test('only one finger draws; a second finger is ignored', async ({ browser }) => {
+test('only one finger draws; a second finger on the surface is a pinch (M9) and throws the stroke away', async ({ browser }) => {
   const { ctx, page, cdp, at, radio } = await setup(browser);
   await radio('Lilla');
   await radio('Tyk');
-  // Finger 1 draws a line along y=0.3; finger 2 rests at (0.65, 0.3) on the same wing.
+  // Finger 1 draws a line along y=0.3; finger 2 lands at (0.65, 0.3): it is a pinch, so nothing is drawn by either finger (M9).
   await touchDrag(cdp, line(at(0.3, 0.3), at(0.45, 0.3), 10), at(0.65, 0.3));
-  expect(near(await pixelAt(page, 0.38, 0.3), [138, 69, 198, 255], 70)).toBe(true);
+  expect(near(await pixelAt(page, 0.38, 0.3), BASE, 2)).toBe(true);
   expect(near(await pixelAt(page, 0.65, 0.3), BASE, 2)).toBe(true);
+  // One finger on its own still draws.
+  await touchDrag(cdp, line(at(0.3, 0.3), at(0.45, 0.3), 10));
+  expect(near(await pixelAt(page, 0.38, 0.3), [138, 69, 198, 255], 70)).toBe(true);
   await ctx.close();
 });
 

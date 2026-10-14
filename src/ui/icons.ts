@@ -48,6 +48,17 @@ export const ICONS = {
   sword: S(
     '<path d="M21.2 2.6c-.6 3.2-4.2 9.4-10.1 14.6l-1.5-1.5C14.8 9.8 18.9 4.8 21.2 2.6z" fill="#f4f7fb" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M7.6 14.4l2 2-1.2 1.2-2-2z" fill="#f5c542" stroke="currentColor" stroke-width="1"/><path d="M8.4 15.6 4 20" stroke="#8a3b2a" stroke-width="3" stroke-linecap="round"/><path d="M5.8 17.4l1.6 1.6M4.7 18.5 6.3 20.1" stroke="#f1d9a7" stroke-width=".9" stroke-linecap="round"/>',
   ),
+  // "The whole animal": a frame with four corner marks (zoom out), shown when the drawing is zoomed in.
+  fit: S(
+    '<path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="9" y="9" width="6" height="6" rx="1.2" fill="currentColor"/>',
+  ),
+  // Tray pages: a crayon, and a star with a dot (stamps and patterns).
+  pageCrayons: S(
+    '<g transform="rotate(40 12 12)"><path d="M9.4 3.2 12 .6l2.6 2.6v3H9.4z" fill="#e8332a" transform="translate(0 3)"/><rect x="9.4" y="6.2" width="5.2" height="13" rx="1" fill="#e8332a"/><rect x="9.4" y="10" width="5.2" height="3.4" fill="#fff" opacity=".6"/></g>',
+  ),
+  pagePatterns: S(
+    '<path d="M12 2.8l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6-4.5-4.2 6.1-.7z" fill="currentColor"/><circle cx="12" cy="11.4" r="1.6" fill="#fff" opacity=".85"/>',
+  ),
   trash: S(
     '<path d="M5 7h14M9.5 7V4.8h5V7M7 7l.8 12.2a1 1 0 0 0 1 .9h6.4a1 1 0 0 0 1-.9L17 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   ),

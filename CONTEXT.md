@@ -21,9 +21,9 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Farveblyant** | `Crayon` | Én af de 15 farver i bakken nederst til venstre (v2: + grå, hvid og regnbue). Den valgte blyant stikker længere frem end de andre. |
 | **Regnbueblyant** | `rainbow` | Blyant hvis farve løber gennem regnbuen langs stregen. |
 | **Bakkeside** | `TrayPage` | Bakken har to sider – blyanter og mønstre – som man skifter mellem med swipe eller små faner. |
-| **Stempel** | `Stamp` | En figur (stjerne, hjerte …) der sættes med ét tryk i den valgte farve. |
-| **Mønsterfyld** | `PatternFill` | Som fyld-spanden, men fylder med et mønster (striber, prikker, skæl, zigzag). |
-| **Zoom** | `DrawingZoom` | Knib/to-finger-træk på tegnefladen, 1×–4×. Stregtykkelser er i skærm-pixel. |
+| **Stempel** | `Stamp` (`stamps.ts`) | En figur (stjerne, hjerte …) der sættes med ét tryk i den valgte farve. |
+| **Mønsterfyld** | `PatternFill` (`patterns.ts`, værktøjet `pattern`) | Som fyld-spanden, men fylder med et mønster (striber, prikker, skæl, zigzag). |
+| **Zoom** | `View` (`viewTransform.ts`) | Knib/to-finger-træk på tegnefladen, 1×–4× (mus: hjul, mellemste knap, mellemrum+træk; tasterne + − 0). Stregtykkelser, stempler og viskelæder er i skærm-pixel. En "Hele dyret"-knap svæver over tegningen, når der er zoomet. |
 | **Navn** | `name` | Valgfrit navn på et dyr (højst 12 tegn), skrives i navnefeltet på tegnefladen. |
 | **Navneskilt** | `NameTag` | Lille skilt over et dyr med dets navn, ved glædeshop og når kameraet følger det. |
 | **Nedtælling** | `ReleaseCountdown` | Det store 3-2-1 midt på skærmen, mens man holder Slip løs nede. Slipper man før tid, sker intet. |

@@ -14,6 +14,11 @@ export interface FillOptions {
   tolerance: number;
   /** Adds a faint crayon-like grain to the filled pixels. */
   grain?: boolean;
+  /**
+   * Pattern fill (CONTEXT: Mønsterfyld): how much of the colour lies on pixel (x, y), 0…1. The colour is blended over what is
+   * there, so the pattern sits on top of the region's own colour. Without it the region is painted solid.
+   */
+  coverage?: (x: number, y: number) => number;
 }
 
 export function parseHex(hex: string): [number, number, number] {
@@ -128,9 +133,11 @@ export function floodFill(
       if (!filled[p]) continue;
       const k = opts.grain ? 1 + grainNoise(x, y) * 0.04 : 1;
       const i = p * 4;
-      data[i] = Math.min(255, color[0] * k);
-      data[i + 1] = Math.min(255, color[1] * k);
-      data[i + 2] = Math.min(255, color[2] * k);
+      const a = opts.coverage ? opts.coverage(x, y) : 1;
+      if (a <= 0) continue;
+      data[i] = Math.min(255, data[i] * (1 - a) + color[0] * k * a);
+      data[i + 1] = Math.min(255, data[i + 1] * (1 - a) + color[1] * k * a);
+      data[i + 2] = Math.min(255, data[i + 2] * (1 - a) + color[2] * k * a);
       data[i + 3] = 255;
     }
   }

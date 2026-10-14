@@ -114,7 +114,7 @@ export class App {
       if (cut.length === 0 && pieces === 0) return 0;
       this.audio.slash();
       // The cut creatures are gone for good, also from the saved ones (their pieces are never saved).
-      for (const c of cut) void this.keeper.delete(c.id);
+      for (const c of cut) this.forget(c.id);
       return cut.length + pieces;
     };
     // (SamuraiMode counts the cut creatures; when three have been cut, the sharks are due.)
@@ -127,7 +127,7 @@ export class App {
     this.adult.onDelete = (creature) => {
       this.aquarium.creatures.remove(creature);
       this.audio.deleted();
-      void this.keeper.delete(creature.id);
+      this.forget(creature.id);
     };
 
     // A tap on a creature in the water: it hops or somersaults for joy (not in adult mode, not while drawing).
@@ -165,12 +165,28 @@ export class App {
   }
 
   /** Puts the saved creatures back into the aquarium (oldest first). */
+  /** The stored drawings of the creatures in the water, so the full-size one can be fetched when the camera follows a creature. */
+  private readonly blobs = new Map<string, Blob>();
+
+  private forget(id: string): void {
+    this.blobs.delete(id);
+    void this.keeper.delete(id);
+  }
+
+  private async loadFull(id: string): Promise<HTMLCanvasElement | null> {
+    const blob = this.blobs.get(id);
+    if (!blob) return null;
+    const canvas = await blobToCanvas(blob);
+    return canvas.width > 512 ? canvas : null;
+  }
+
   private async restore(): Promise<void> {
     const all = await this.keeper.restore();
     for (const [i, saved] of all.entries()) {
       try {
-        const canvas = await blobToCanvas(saved.drawing);
-        const creature = this.aquarium.creatures.spawn(canvas, saved.species, undefined, undefined, { id: saved.id, createdAt: saved.createdAt });
+        const canvas = await blobToCanvas(saved.drawing, 512); // (the full-size drawing is fetched again if the camera follows it)
+        this.blobs.set(saved.id, saved.drawing);
+        const creature = this.aquarium.creatures.spawn(canvas, saved.species, undefined, undefined, { id: saved.id, createdAt: saved.createdAt, fullLoader: () => this.loadFull(saved.id) });
         // They grow into view one after another (the whole row takes at most ~2.5 s).
         creature.appearAfter(Math.min(0.15 * i, 2.5));
       } catch (e) {
@@ -188,12 +204,16 @@ export class App {
     if (this.releasing) return;
     this.releasing = true;
     this.audio.release();
-    for (const goodbye of this.aquarium.creatures.makeRoom(1)) void this.keeper.delete(goodbye.id);
+    for (const goodbye of this.aquarium.creatures.makeRoom(1)) this.forget(goodbye.id);
     const creature = this.aquarium.creatures.release(drawing.canvas, species, this.panel.getTemplateRect(), this.aquarium.viewport);
     this.lastRelease = { drawing, species, creature };
     // Saving (PNG encoding) is not urgent: do it right after this click, so the transition starts without delay.
     window.setTimeout(() => {
-      void canvasToBlob(creature.drawing).then((blob) => this.keeper.add({ id: creature.id, species, drawing: blob, createdAt: creature.createdAt }));
+      // The whole 1024×1024 drawing is kept (ADR 0009), not the 512 the body is made from.
+      void canvasToBlob(drawing.canvas).then((blob) => {
+        this.blobs.set(creature.id, blob);
+        void this.keeper.add({ id: creature.id, species, drawing: blob, createdAt: creature.createdAt, version: 2 });
+      });
     }, 0);
     this.panel.beginRelease();
     this.aquarium.setDimmed(false);

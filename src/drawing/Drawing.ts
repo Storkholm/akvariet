@@ -2,12 +2,14 @@ import type { Template } from '../species/types';
 import { floodFill, parseHex, type Rect } from './floodFill';
 import { signedArea } from './geometry';
 import { rasterizeMask } from './mask';
+import { patternCoverage, type PatternId } from './patterns';
+import { drawStamp, stampTilt, STAMP_SCREEN_SIZES, type StampId } from './stamps';
 import { BRUSH_SIZES, RAINBOW, RAINBOW_BANDS, rainbowBand, rainbowColor, type BrushIndex } from './palette';
 import { StrokeSmoother, type Segment } from './smoothing';
 import { UndoStack } from './undoStack';
 
 export const DRAWING_SIZE = 1024;
-export type Tool = 'crayon' | 'eraser' | 'bucket';
+export type Tool = 'crayon' | 'eraser' | 'bucket' | 'stamp' | 'pattern';
 
 /** Flood-fill colour tolerance (per channel, 0–255). */
 const FILL_TOLERANCE = 36;
@@ -29,6 +31,12 @@ export class Drawing {
   /** A '#rrggbb' hex, or RAINBOW for the rainbow crayon. */
   color = '#e8332a';
   brush: BrushIndex = 1;
+  /** How far the child has zoomed in (1…4): strokes, the eraser and stamps are sized in *screen* pixels, so they get finer when zoomed. */
+  zoom = 1;
+  /** Drawing pixels per CSS pixel at zoom 1 (the drawing is 1024 px; on screen it is a bit smaller or larger). */
+  pxPerCss = DRAWING_SIZE / 700;
+  stamp: StampId = 'star';
+  pattern: PatternId = 'stripes';
   /** Called whenever the undo availability may have changed. */
   onChange?: () => void;
 
@@ -48,6 +56,9 @@ export class Drawing {
   private rainbow = false;
   private rainbowDistance = 0;
   private rainbowPhase = 0;
+  /** A row of stamps is being laid (a tap or a drag). */
+  private stamping = false;
+  private lastStamp: [number, number] | null = null;
 
   constructor(private readonly template: Template) {
     this.canvas = document.createElement('canvas');
@@ -104,7 +115,16 @@ export class Drawing {
       this.fill(x, y);
       return;
     }
-    const width = BRUSH_SIZES[this.brush] * (this.tool === 'eraser' ? 1.6 : 1);
+    if (this.tool === 'pattern') {
+      this.fill(x, y, true);
+      return;
+    }
+    if (this.tool === 'stamp') {
+      this.beginStamps(x, y);
+      return;
+    }
+    // (At zoom 1 these are the three widths in drawing pixels; zoomed in, the same number of screen pixels is fewer drawing pixels.)
+    const width = Math.max(1.5, (BRUSH_SIZES[this.brush] * (this.tool === 'eraser' ? 1.6 : 1)) / this.zoom);
     this.strokeWidth = width;
     this.rainbow = this.tool === 'crayon' && this.color === RAINBOW;
     this.rainbowDistance = 0;
@@ -124,11 +144,19 @@ export class Drawing {
   }
 
   pointerMove(x: number, y: number): void {
+    if (this.stamping) {
+      this.layStamps(x, y);
+      return;
+    }
     if (!this.stroking) return;
     this.drawSegments(this.smoother.push([x, y]));
   }
 
   pointerUp(): void {
+    if (this.stamping) {
+      this.endStamps(true);
+      return;
+    }
     if (!this.stroking) return;
     this.drawSegments(this.smoother.end());
     this.stroking = false;
@@ -140,6 +168,88 @@ export class Drawing {
       const w = Math.min(DRAWING_SIZE, Math.ceil(this.dirty.maxX + pad)) - x;
       const h = Math.min(DRAWING_SIZE, Math.ceil(this.dirty.maxY + pad)) - y;
       this.commit({ x, y, w, h });
+    }
+    this.dirty = null;
+  }
+
+  /**
+   * Throws away the stroke (or row of stamps) in progress as if it had never been made: a second finger that lands in the middle
+   * of a stroke means the child is pinching, not drawing.
+   */
+  discardStroke(): void {
+    if (this.stamping) {
+      this.endStamps(false);
+      return;
+    }
+    if (!this.stroking) return;
+    this.stroking = false;
+    this.ctx.restore();
+    if (this.dirty) {
+      const pad = Math.ceil(this.strokeWidth / 2) + 2;
+      const x = Math.max(0, Math.floor(this.dirty.minX - pad));
+      const y = Math.max(0, Math.floor(this.dirty.minY - pad));
+      this.restoreFromCommitted({ x, y, w: Math.min(DRAWING_SIZE, Math.ceil(this.dirty.maxX + pad)) - x, h: Math.min(DRAWING_SIZE, Math.ceil(this.dirty.maxY + pad)) - y });
+    }
+    this.dirty = null;
+  }
+
+  private restoreFromCommitted(rect: Rect): void {
+    this.ctx.clearRect(rect.x, rect.y, rect.w, rect.h);
+    this.ctx.drawImage(this.committed, rect.x, rect.y, rect.w, rect.h, rect.x, rect.y, rect.w, rect.h);
+  }
+
+  private stampSize(): number {
+    return (STAMP_SCREEN_SIZES[this.brush] * this.pxPerCss) / this.zoom;
+  }
+
+  private stampPaint(x: number, y: number): string | CanvasPattern {
+    if (this.color === RAINBOW) return this.grain(rainbowColor(this.rainbowDistance, ((x * 0.37 + y * 0.61) / 600) % 1));
+    return this.grain(this.color);
+  }
+
+  private placeStamp(x: number, y: number): void {
+    const size = this.stampSize();
+    drawStamp(this.ctx, this.stamp, x, y, size, this.stampPaint(x, y), stampTilt(x, y));
+    this.rainbowDistance += size * 0.9;
+    const r = size * 0.75;
+    this.extendDirty(x - r, y - r);
+    this.extendDirty(x + r, y + r);
+    this.lastStamp = [x, y];
+  }
+
+  private beginStamps(x: number, y: number): void {
+    this.stamping = true;
+    this.dirty = null;
+    this.rainbowDistance = 0;
+    this.strokeWidth = this.stampSize();
+    this.ctx.save();
+    this.ctx.clip(this.clipPath, 'nonzero');
+    this.placeStamp(x, y);
+  }
+
+  /** A drag lays stamps at an even distance (a little more than their size apart). */
+  private layStamps(x: number, y: number): void {
+    const last = this.lastStamp;
+    if (!last) return;
+    const gap = this.stampSize() * 1.1;
+    const dist = Math.hypot(x - last[0], y - last[1]);
+    if (dist < gap) return;
+    const n = Math.floor(dist / gap);
+    const [fx, fy] = last;
+    for (let i = 1; i <= n; i++) this.placeStamp(fx + ((x - fx) / dist) * gap * i, fy + ((y - fy) / dist) * gap * i);
+  }
+
+  private endStamps(keep: boolean): void {
+    this.stamping = false;
+    this.lastStamp = null;
+    this.ctx.restore();
+    if (this.dirty) {
+      const pad = Math.ceil(this.strokeWidth) + 2;
+      const x = Math.max(0, Math.floor(this.dirty.minX - pad));
+      const y = Math.max(0, Math.floor(this.dirty.minY - pad));
+      const rect = { x, y, w: Math.min(DRAWING_SIZE, Math.ceil(this.dirty.maxX + pad)) - x, h: Math.min(DRAWING_SIZE, Math.ceil(this.dirty.maxY + pad)) - y };
+      if (keep) this.commit(rect);
+      else this.restoreFromCommitted(rect);
     }
     this.dirty = null;
   }
@@ -222,13 +332,20 @@ export class Drawing {
     }
   }
 
-  private fill(x: number, y: number): void {
+  /** True while a stroke or a row of stamps is being made (for the panel: a second finger then throws it away). */
+  get busy(): boolean {
+    return this.stroking || this.stamping;
+  }
+
+  private fill(x: number, y: number, pattern = false): void {
     const img = this.ctx.getImageData(0, 0, DRAWING_SIZE, DRAWING_SIZE);
     const bands = RAINBOW_BANDS.map(parseHex);
     const color = this.color === RAINBOW ? (row: number, minY: number, maxY: number) => bands[rainbowBand(row, minY, maxY)] : parseHex(this.color);
+    const id = this.pattern;
     const rect = floodFill(img.data, DRAWING_SIZE, DRAWING_SIZE, x, y, color, this.mask, {
       tolerance: FILL_TOLERANCE,
       grain: true,
+      coverage: pattern ? (px, py) => patternCoverage(id, px, py) : undefined,
     });
     if (!rect) return;
     this.ctx.putImageData(img, 0, 0, rect.x, rect.y, rect.w, rect.h);
