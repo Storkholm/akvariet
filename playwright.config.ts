@@ -6,7 +6,7 @@ const executablePath = process.env.CHROMIUM_PATH ?? (process.env.CI ? undefined 
 
 export default defineConfig({
   testDir: 'e2e',
-  timeout: 60_000,
+  timeout: 90_000, // (CI runners are slow: software GL; 133 tests take ~28 min there)
   fullyParallel: false,
   workers: 1,
   use: {
