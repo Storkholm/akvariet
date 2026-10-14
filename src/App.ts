@@ -47,7 +47,13 @@ export class App {
     ui.append(this.picker.element, this.panel.element, this.adult.element, this.samurai.element, this.viewToggle.element, corner);
     document.documentElement.dataset.view = 'aquarium';
     // Browsers only allow sound after a first tap: any tap or key press wakes the sound up.
-    for (const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, () => this.audio.unlock(), { capture: true });
+    for (const ev of ['pointerdown', 'keydown']) {
+      window.addEventListener(ev, () => {
+        this.audio.unlock();
+        // The "wee" recordings for a tap on a creature (ADR 0012): fetched once, right after the first tap.
+        void this.audio.loadSamples('wee', import.meta.env.BASE_URL);
+      }, { capture: true });
+    }
     root.append(ui);
     this.adult.setAvailable(true);
 
@@ -148,6 +154,12 @@ export class App {
       this.aquarium.follow(this.aquarium.creatures.creatureAt(nx, ny) ?? lastHit);
     };
     aquarium.controls.onSwipe = () => this.aquarium.follow(null);
+    // The keyboard (ADR 0013): the arrows slide the camera; ← → scroll the species row while it is shown. Not while drawing or in a dialog.
+    this.aquarium.keyHooks = {
+      blocked: () => !!document.querySelector('.panel.open') || !!document.querySelector('.confirm:not([hidden])'),
+      carouselShown: () => this.picker.active,
+      stepCarousel: (dir) => this.picker.step(dir),
+    };
 
     this.restored = this.restore();
   }

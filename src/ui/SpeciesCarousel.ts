@@ -17,6 +17,7 @@ export class SpeciesCarousel {
   readonly element: HTMLElement;
   onPick?: (species: Species, index: number) => void;
   private readonly buttons: HTMLButtonElement[] = [];
+  private readonly arrows: { prev: HTMLButtonElement; next: HTMLButtonElement };
   private pointer: { id: number; startX: number; lastX: number; t: number; vx: number; swiping: boolean } | null = null;
   private justSwiped = false;
 
@@ -33,6 +34,15 @@ export class SpeciesCarousel {
       this.buttons.push(b);
       this.element.append(b);
     });
+    // For a mouse: arrow buttons at the two ends (hidden on touch screens by the stylesheet), and the wheel scrolls the row.
+    const arrow = (dir: 1 | -1, label: string): HTMLButtonElement => {
+      const b = h('button', { class: `carousel-arrow ${dir < 0 ? 'prev' : 'next'}`, type: 'button', 'aria-label': label });
+      b.addEventListener('click', () => this.step(dir));
+      return b;
+    };
+    this.arrows = { prev: arrow(-1, 'Forrige dyr'), next: arrow(1, 'Næste dyr') };
+    this.element.append(this.arrows.prev, this.arrows.next);
+    this.element.addEventListener('wheel', this.onWheel, { passive: false });
     this.element.addEventListener('pointerdown', this.onDown);
     this.element.addEventListener('pointermove', this.onMove);
     this.element.addEventListener('pointerup', this.onUp);
@@ -57,9 +67,41 @@ export class SpeciesCarousel {
       b.disabled = folded;
       b.tabIndex = folded ? -1 : 0;
     }
+    this.arrows.prev.disabled = folded || !this.bubbles.scroll.canStep(-1);
+    this.arrows.next.disabled = folded || !this.bubbles.scroll.canStep(1);
     // While the row is folded away the band must not swallow swipes meant for the camera.
     this.element.classList.toggle('inert', folded);
   }
+
+  /** Scroll the row one bubble (arrow buttons, keys). */
+  step(dir: 1 | -1): void {
+    if (this.bubbles.folded || this.element.hidden) return;
+    this.bubbles.scroll.step(dir);
+    this.layout();
+  }
+
+  /** Is the row on screen and ready to be scrolled? (The keys ← → belong to it only then.) */
+  get active(): boolean {
+    return !this.element.hidden && !this.bubbles.folded && this.bubbles.visible && this.bubbles.scroll.scrollable;
+  }
+
+  private wheelLocked = 0;
+
+  /** A mouse wheel (or a trackpad swipe) over the row: one bubble per notch, whichever way the wheel mostly turns. */
+  private readonly onWheel = (e: WheelEvent): void => {
+    if (this.bubbles.folded || !this.bubbles.scroll.scrollable) return;
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (Math.abs(d) < 1) return;
+    e.preventDefault();
+    // A trackpad sends many small events for one swipe: one step per swipe.
+    const now = e.timeStamp;
+    if (now - this.wheelLocked < 220) {
+      this.wheelLocked = now;
+      return;
+    }
+    this.wheelLocked = now;
+    this.step(d > 0 ? 1 : -1);
+  };
 
   private readonly onDown = (e: PointerEvent): void => {
     if (this.pointer || this.bubbles.folded) return;

@@ -750,3 +750,43 @@
     display: none;
   }
 }
+
+/* ---------- carousel arrows: only for a mouse (hover + fine pointer); touch screens swipe ---------- */
+.carousel-arrow {
+  display: none;
+  position: absolute;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  margin-top: -26px;
+  padding: 0;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: rgba(14, 80, 150, 0.78);
+  box-shadow: 0 3px 10px rgba(0, 30, 70, 0.35);
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 2;
+}
+.carousel-arrow::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border: solid #fff;
+  border-width: 0 5px 5px 0;
+  border-radius: 2px;
+}
+.carousel-arrow.next::after { transform: translate(-70%, -50%) rotate(-45deg); }
+.carousel-arrow.prev::after { transform: translate(-30%, -50%) rotate(135deg); }
+.carousel-arrow.prev { left: 14px; }
+.carousel-arrow.next { right: 14px; }
+.carousel-arrow:hover:not(:disabled) { background: rgba(14, 80, 150, 0.95); }
+.carousel-arrow:disabled { opacity: 0.25; cursor: default; }
+.carousel-arrow:focus-visible { outline: 4px solid #ffd166; outline-offset: 2px; }
+.picker.inert .carousel-arrow { pointer-events: none; opacity: 0; }
+@media (hover: hover) and (pointer: fine) {
+  .carousel-arrow { display: block; }
+}

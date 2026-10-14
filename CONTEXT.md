@@ -41,7 +41,7 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Baggrundsliv** | `AmbientLife` | Simple fiskestimer og bevægelige planter der ikke er tegnet af barnet og ikke gemmes. |
 | **Rev** | `Reef` | Akvariets faste pynt på bunden: koraller, planter, sten og sand. Bygges i kode (seedet), ikke tegnet af barnet. Fra v2 bygget i **bidder** langs bredden, så kun det synlige tegnes (ADR 0006). |
 | **Fiskestime** | `FishSchool` | Én flok af baggrundslivet (boids) der tegnes med instancing. Akvariet har flere stimer med hver sin fiskeart. |
-| **Glædeshop** | `react()` | Det et dyr gør, når man trykker på det i akvariet: lille hop (60 %) eller salto (40 %) + bobler (`BubbleBursts`) + lyd. Et tryk lige ved siden af tæller også. |
+| **Glædeshop** | `react()` | Det et dyr gør, når man trykker på det i akvariet: lille hop (60 %) eller salto (40 %) + bobler (`BubbleBursts`) + lyd (familiens "wee", `wee1…4.mp3`, ADR 0012; ellers en boblelyd). Et tryk lige ved siden af tæller også. |
 | **Svømmer** | `Swimmer` | Bevægelsestilstanden for ét dyr i akvariet: position, retning, fart og næste mål. Ren logik uden tegning; styrer uden om sand, overflade, vægge og andre dyr. |
 | **Pigge** | `UrchinSpikes` | Søpindsvinets 3D-pigge (instancing), farvet efter tegningen ved hver piggs rod; de vifter let. |
 | **Overgang** | `Transition` | Øjeblikket efter Slip løs: den flade tegning bliver til krop på samme sted og i samme størrelse, folder sig ud, drejer og svømmer ind i akvariet. |
@@ -50,6 +50,7 @@ Når et nyt begreb opstår, tilføjes det her **før** det bruges i koden.
 | **Afsked** | `farewell()` | Når akvariet er fuldt og et nyt dyr kommer ind, svømmer det ældste dyr ud af billedet og slettes. |
 | **Lyd** | `AudioEngine` | Alle lyde, lavet med Web Audio i koden (ingen lydfiler): en blød tone pr. farveblyant (15 toner i en pentatonisk skala fra A3) og en tone pr. tal i nedtællingen, svup ved Slip løs, pop ved boblen, bobler ved glædeshop, bloop ved sletning og en svag underlig brummen i vandet. Starter først efter første tryk; lydknappen (højttaler, øverst til højre) slår det fra, og valget huskes. |
 | **Voksentilstand** | `AdultMode` | Skjult tilstand (hold låse-ikonet nede i 3 sek.), hvor man kan slette enkelte dyr og få hjælp til fuldskærm. Er aldrig tændt samtidig med samurai-mode. |
+| **Piletaster** | `KeyboardControls` | På computer: piletaster/WASD glider kameraet, +/− zoomer, Home nulstiller; ← → ruller artsrækken, mens den er fremme. Artsrækken har pile-knapper og kan rulles med musehjulet. ADR 0013. |
 | **Samurai-mode** | `SamuraiMode` | Tilstand (hold sværd-knappen i 2 sek.), hvor swipe er sværdhug. ADR 0008. |
 | **Hug** | `slash()` | Ét sværdhug: et lysende spor; dyr det krydser, deles i to stykker og slettes. |
 | **Stykke** | `Fragment` | En del af et hugget dyr. Synker til bunds; gemmes aldrig. Kan hugges igen og igen (ADR 0011; højst 40 ad gangen). |

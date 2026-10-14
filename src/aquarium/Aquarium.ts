@@ -3,6 +3,7 @@ import { clampPixelRatio } from '../util/render';
 import { CreatureManager } from '../creature/CreatureManager';
 import { SPECIES, type Species } from '../species';
 import { CameraRig, fitCamera, FOLLOW_ZOOM, type CameraFit } from './cameraRig';
+import { KeyboardControls, type KeyboardHost } from './KeyboardControls';
 import { CameraControls } from './CameraControls';
 import { WORLD_HALF_WIDTH } from './terrain';
 
@@ -107,6 +108,14 @@ export class Aquarium {
     };
     for (const s of this.schools) this.scene.add(s.mesh);
 
+    this.keys = new KeyboardControls(this.rig, {
+      worldPerPixel: (zoom) => this.worldPerPixel(zoom),
+      height: () => this.host.clientHeight,
+      blocked: () => this.keyHooks.blocked(),
+      carouselShown: () => this.keyHooks.carouselShown(),
+      stepCarousel: (dir) => this.keyHooks.stepCarousel(dir),
+      onMoved: () => this.follow(null),
+    });
     this.controls = new CameraControls(this.renderer.domElement, this.rig, { worldPerPixel: (zoom) => this.worldPerPixel(zoom) });
     this.resize();
     window.addEventListener('resize', this.resize);
@@ -209,6 +218,10 @@ export class Aquarium {
    * direction. Every creature the swipe crosses is cut in two along that line: it leaves the water and its two pieces take its place.
    * Returns the creatures that were cut.
    */
+  /** CONTEXT: Piletaster – the keyboard moves the camera (ADR 0013). The app says when the keys belong to something else. */
+  readonly keys: KeyboardControls;
+  keyHooks: Pick<KeyboardHost, 'blocked' | 'carouselShown' | 'stepCarousel'> = { blocked: () => false, carouselShown: () => false, stepCarousel: () => undefined };
+
   /** How many already cut pieces the last swipe cut again. */
   piecesCut = 0;
   private swipeId = 0;
@@ -282,6 +295,7 @@ export class Aquarium {
     timeUniform.value = this.elapsed;
     for (const s of this.schools) s.update(dt);
     this.creatures.update(dt);
+    this.keys.update(dt);
     this.rig.update(dt);
     this.fragments.update(dt);
     this.sharks.update(dt, this.fragments, this.livingForSharks(), this.rig.x, this.rig.viewHalfWidth * 1.3);

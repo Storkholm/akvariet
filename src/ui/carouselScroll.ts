@@ -122,6 +122,17 @@ export class CarouselScroll {
     this.target = this.offsetFor(clamp(i, 0, this.count - 1));
   }
 
+  /** One bubble to the left (−1) or right (+1) of the one nearest the middle (arrow buttons and keys). */
+  step(dir: 1 | -1): void {
+    this.scrollTo(this.nearest() + dir);
+  }
+
+  /** Is there another bubble in that direction to scroll to? */
+  canStep(dir: 1 | -1): boolean {
+    if (!this.scrollable) return false;
+    return dir < 0 ? this.x > this.min + 0.5 : this.x < this.max - 0.5;
+  }
+
   get isDragging(): boolean {
     return this.dragging;
   }

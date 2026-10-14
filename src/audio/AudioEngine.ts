@@ -154,7 +154,7 @@ export class AudioEngine {
   }
 
   /**
-   * Loads the family's recordings `<name>-1.mp3` … `<name>-4.mp3` from `public/sounds/` (ADR 0007). Files that are not there
+   * Loads the family's recordings `<name>-1.mp3` … `<name>-4.mp3` (or `<name>1.mp3` …) from `public/sounds/` (ADR 0007). Files that are not there
    * are simply skipped: the game works with any number of them, also none. Safe to call again.
    */
   async loadSamples(name: string, base = ''): Promise<number> {
@@ -164,14 +164,18 @@ export class AudioEngine {
     if (this.samples.has(name)) return have.length;
     this.samples.set(name, have);
     for (let i = 1; i <= 4; i++) {
-      try {
-        const res = await fetch(`${base}sounds/${name}-${i}.mp3`);
-        if (!res.ok || !(res.headers.get('content-type') ?? '').includes('audio')) continue;
-        const buffer = await ctx.decodeAudioData(await res.arrayBuffer());
-        have.push(buffer);
-        this.onsets.set(buffer, leadingSilence(buffer.getChannelData(0), buffer.sampleRate));
-      } catch {
-        /* missing or not decodable: skipped */
+      // `<name>-1.mp3` or `<name>1.mp3`: either way of numbering the files works.
+      for (const file of [`${name}-${i}.mp3`, `${name}${i}.mp3`]) {
+        try {
+          const res = await fetch(`${base}sounds/${file}`);
+          if (!res.ok || !(res.headers.get('content-type') ?? '').includes('audio')) continue;
+          const buffer = await ctx.decodeAudioData(await res.arrayBuffer());
+          have.push(buffer);
+          this.onsets.set(buffer, leadingSilence(buffer.getChannelData(0), buffer.sampleRate));
+          break;
+        } catch {
+          /* missing or not decodable: skipped */
+        }
       }
     }
     return have.length;
@@ -214,6 +218,8 @@ export class AudioEngine {
 
   /** A creature hops for joy (CONTEXT: Glædeshop). */
   react(): void {
+    // A recorded "wee" if there is one (ADR 0012); a second tap while one is still playing is silent. Otherwise bubbles made in code.
+    if (this.playSample('wee', true)) return;
     this.play('bubbles', (c, out, t) => bubbles(c, out, t, this.rng));
   }
 
