@@ -236,6 +236,7 @@ test('M5: the turtle\'s own colours are on the body, with eyes and a pale belly 
 });
 
 test('M5: both species swim together, are saved, and come back as the right species', async ({ browser }) => {
+  test.setTimeout(150_000); // three whole releases (each held for the 3-2-1) plus a reload: over 60 s on a slow CI runner (failed there once)
   const { ctx, page, errors } = await newTouchPage(browser, TABLET);
   await page.goto('/?still');
   await page.evaluate(() => (window as unknown as { app: { restored: Promise<void> } }).app.restored);
