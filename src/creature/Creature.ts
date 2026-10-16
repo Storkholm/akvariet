@@ -9,7 +9,8 @@ import { Reaction, pickKind, type ReactionKind } from './reaction';
 import { Transition } from './Transition';
 import type { Species, Template } from '../species/types';
 import { createRng, type Rng } from '../util/random';
-import { createCreatureTexture, downscaleDrawing } from './texture';
+import { createCreatureTexture, createNameTexture, downscaleDrawing } from './texture';
+import { nameOrUndefined } from './name';
 
 let counter = 0;
 function newId(): string {
@@ -26,6 +27,9 @@ export class Creature {
   readonly id: string;
   readonly species: Species;
   readonly createdAt: number;
+  /** CONTEXT: Navn – optional, at most 12 characters. */
+  readonly name: string | undefined;
+  private readonly nameTexture: THREE.CanvasTexture | null;
   readonly group = new THREE.Group();
   readonly mesh: THREE.Mesh;
   /** The drawing at 512×512 – clean, without eyes (this is what gets stored in M4). */
@@ -62,10 +66,11 @@ export class Creature {
     drawingCanvas: HTMLCanvasElement,
     readonly rng: Rng = createRng((Math.random() * 2 ** 32) >>> 0),
     maxAnisotropy = 4,
-    meta: { id?: string; createdAt?: number; fullLoader?: () => Promise<HTMLCanvasElement | null> } = {},
+    meta: { id?: string; createdAt?: number; name?: string; fullLoader?: () => Promise<HTMLCanvasElement | null> } = {},
   ) {
     this.id = meta.id ?? newId();
     this.createdAt = meta.createdAt ?? Date.now();
+    this.name = nameOrUndefined(meta.name);
     this.species = template.species;
     this.drawing = downscaleDrawing(drawingCanvas, 512);
     this.fullSource = drawingCanvas.width > 512 ? drawingCanvas : null;
@@ -75,7 +80,8 @@ export class Creature {
     if (this.fullSource) globalThis.setTimeout(() => (this.fullSource = this.fullTexture ? this.fullSource : null), 60_000);
     this.texture = createCreatureTexture(this.drawing, template, maxAnisotropy);
     this.uniforms = { uPhase: { value: 0 }, uFlap: { value: 0 }, uTurn: { value: 0 } };
-    this.material = createCreatureShader(template, this.texture, this.uniforms);
+    this.nameTexture = this.name ? createNameTexture(this.name, template) : null;
+    this.material = createCreatureShader(template, this.texture, this.uniforms, undefined, this.nameTexture);
     this.mesh = new THREE.Mesh(geometry, this.material);
     this.mesh.frustumCulled = false;
     this.group.add(this.mesh);
@@ -307,6 +313,7 @@ export class Creature {
       this.texture.dispose();
       this.fullTexture?.dispose();
     }
+    this.nameTexture?.dispose();
     this.spikes?.dispose();
     this.material.dispose();
   }

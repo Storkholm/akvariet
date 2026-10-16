@@ -5,6 +5,7 @@ import { CreatureKeeper } from './creature/keeper';
 import { createCreatureStore } from './creature/store';
 import type { Drawing } from './drawing/Drawing';
 import { SPECIES, type Species } from './species';
+import { NameTag } from './ui/NameTag';
 import { AudioEngine, SKIP_TO_LOUD } from './audio/AudioEngine';
 import { AdultMode } from './ui/AdultMode';
 import { DrawingPanel } from './ui/DrawingPanel';
@@ -22,6 +23,8 @@ export class App {
   readonly picker: SpeciesCarousel;
   readonly viewToggle = new ViewToggle();
   readonly samurai: SamuraiMode;
+  /** CONTEXT: Navneskilt. */
+  readonly nameTag: NameTag;
   readonly panel = new DrawingPanel();
   readonly adult: AdultMode;
   readonly audio = new AudioEngine();
@@ -37,6 +40,7 @@ export class App {
   constructor(root: HTMLElement, private readonly aquarium: Aquarium, slots: readonly Species[] = SPECIES) {
     this.picker = new SpeciesCarousel(aquarium.pickerBubbles, slots);
     this.adult = new AdultMode();
+    this.nameTag = new NameTag(() => aquarium.creatures.creatures, (p) => aquarium.project(p));
     this.samurai = new SamuraiMode(aquarium.renderer.domElement);
     this.soundButton = new SoundButton(this.audio);
     const ui = document.createElement('div');
@@ -44,7 +48,7 @@ export class App {
     const corner = document.createElement('div');
     corner.className = 'top-right';
     corner.append(this.fullscreenButton.element, this.soundButton.element);
-    ui.append(this.picker.element, this.panel.element, this.adult.element, this.samurai.element, this.viewToggle.element, corner);
+    ui.append(this.nameTag.element, this.picker.element, this.panel.element, this.adult.element, this.samurai.element, this.viewToggle.element, corner);
     document.documentElement.dataset.view = 'aquarium';
     // Browsers only allow sound after a first tap: any tap or key press wakes the sound up.
     for (const ev of ['pointerdown', 'keydown']) {
@@ -75,7 +79,7 @@ export class App {
       }, 220);
     };
     this.panel.onHome = () => this.backToPicker();
-    this.panel.onRelease = (drawing, species) => this.release(drawing, species);
+    this.panel.onRelease = (drawing, species, name) => this.release(drawing, species, name);
     this.panel.onCrayon = (i) => this.audio.crayon(i);
     this.panel.onCountdown = (n) => this.audio.countdown(n);
 
@@ -132,7 +136,12 @@ export class App {
     };
 
     // A tap on a creature in the water: it hops or somersaults for joy (not in adult mode, not while drawing).
-    this.aquarium.onReact = () => this.audio.react();
+    this.aquarium.onReact = (c) => {
+      this.audio.react();
+      this.nameTag.flash(c);
+    };
+    this.aquarium.onFollow = (c) => this.nameTag.follow(c);
+    this.aquarium.onFrame = (dt) => this.nameTag.update(dt);
     // Taps and double taps on the water. Swipes and pinches belong to the camera (CameraControls), so a swipe is never a tap.
     const canvas = aquarium.renderer.domElement;
     const ndc = (x: number, y: number): [number, number] => {
@@ -187,7 +196,7 @@ export class App {
       try {
         const canvas = await blobToCanvas(saved.drawing, 512); // (the full-size drawing is fetched again if the camera follows it)
         this.blobs.set(saved.id, saved.drawing);
-        const creature = this.aquarium.creatures.spawn(canvas, saved.species, undefined, undefined, { id: saved.id, createdAt: saved.createdAt, fullLoader: () => this.loadFull(saved.id) });
+        const creature = this.aquarium.creatures.spawn(canvas, saved.species, undefined, undefined, { id: saved.id, createdAt: saved.createdAt, name: saved.name, fullLoader: () => this.loadFull(saved.id) });
         // They grow into view one after another (the whole row takes at most ~2.5 s).
         creature.appearAfter(Math.min(0.15 * i, 2.5));
       } catch (e) {
@@ -201,19 +210,19 @@ export class App {
    * fades out while the aquarium turns sharp, the body unfolds and swims away, then the picker returns.
    * The creature is saved, and with a full aquarium (30) the oldest one says goodbye (CONTEXT: Afsked).
    */
-  private release(drawing: Drawing, species: Species): void {
+  private release(drawing: Drawing, species: Species, name = ''): void {
     if (this.releasing) return;
     this.releasing = true;
     this.audio.release();
     for (const goodbye of this.aquarium.creatures.makeRoom(1)) this.forget(goodbye.id);
-    const creature = this.aquarium.creatures.release(drawing.canvas, species, this.panel.getTemplateRect(), this.aquarium.viewport);
+    const creature = this.aquarium.creatures.release(drawing.canvas, species, this.panel.getTemplateRect(), this.aquarium.viewport, name);
     this.lastRelease = { drawing, species, creature };
     // Saving (PNG encoding) is not urgent: do it right after this click, so the transition starts without delay.
     window.setTimeout(() => {
       // The whole 1024×1024 drawing is kept (ADR 0009), not the 512 the body is made from.
       void canvasToBlob(drawing.canvas).then((blob) => {
         this.blobs.set(creature.id, blob);
-        void this.keeper.add({ id: creature.id, species, drawing: blob, createdAt: creature.createdAt, version: 2 });
+        void this.keeper.add({ id: creature.id, species, drawing: blob, createdAt: creature.createdAt, version: 2, ...(creature.name ? { name: creature.name } : {}) });
       });
     }, 0);
     this.panel.beginRelease();

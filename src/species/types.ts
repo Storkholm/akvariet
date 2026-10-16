@@ -60,4 +60,6 @@ export interface Template {
   /** World units per template unit when the creature swims in the aquarium. */
   size: number;
   swim: SwimParams;
+  /** Where the creature's name is written on its belly (template units): the middle of the text and the widest it may be. Only for species whose belly is seen. */
+  nameSpot?: { x: number; y: number; width: number };
 }

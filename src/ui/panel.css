@@ -905,3 +905,116 @@
   box-shadow: 0 3px 10px rgba(0, 30, 80, 0.35);
 }
 .canvas-wrap .fit-btn:active { background: rgba(20, 70, 130, 0.92); }
+
+/* ---------- M10: the name field, the name tag, the name in the delete question ---------- */
+/* The field sits in the top row after the buttons (not in the middle of the top edge, where the nose of the animal reaches up). */
+.name-input {
+  order: 4;
+  flex: none;
+  width: 172px;
+  height: 48px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  border: 3px solid rgba(255, 255, 255, 0.92);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font: 800 22px/1 system-ui, 'Segoe UI', Roboto, sans-serif;
+  text-align: center;
+  text-overflow: ellipsis;
+  box-shadow: 0 3px 10px rgba(0, 30, 80, 0.3);
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.name-input::placeholder {
+  color: rgba(255, 255, 255, 0.75);
+}
+/* A low landscape screen (a phone on its side): the animal is small and reaches up between the buttons, so the field is only as wide as "Aa". */
+@media (orientation: landscape) and (max-height: 480px) {
+  .name-input:not(:focus) {
+    width: 56px;
+    padding: 0 4px;
+  }
+}
+/* Typing: the field comes to the middle of the top edge and the other buttons step aside; the tray goes too, so the animal gets the room. */
+.name-input:focus {
+  outline: none;
+  position: fixed;
+  z-index: 8;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(300px, calc(100vw - 24px));
+  background: rgba(255, 255, 255, 0.95);
+  color: #1c3054;
+  border-color: #ffd166;
+}
+.panel.typing .bottom,
+.panel.typing .fit-btn {
+  display: none;
+}
+.panel.typing .top-buttons > :not(.name-input) {
+  visibility: hidden;
+}
+.adult-name {
+  margin: 0 0 4px;
+  font: 800 24px/1.1 system-ui, 'Segoe UI', Roboto, sans-serif;
+  color: #1c3054;
+}
+.adult-name[hidden] { display: none; }
+
+.name-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 3;
+}
+.name-tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 6px 16px 8px;
+  border-radius: 18px;
+  background: #fffdf4;
+  color: #1c3054;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 12px rgba(0, 30, 70, 0.35);
+  font: 800 20px/1.15 system-ui, 'Segoe UI', Roboto, sans-serif;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  will-change: transform, opacity;
+}
+.name-tag::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  width: 14px;
+  height: 14px;
+  background: #fffdf4;
+  border-right: 3px solid #fff;
+  border-bottom: 3px solid #fff;
+  transform: translateX(-50%) rotate(45deg);
+  border-radius: 0 0 4px 0;
+}
+.name-tag.on { opacity: 1; }
+
+@media (orientation: portrait), (max-width: 760px) {
+  /* Home, the tabs, then the name field filling what is left up to the sound button (the fullscreen button steps aside while drawing). */
+  .name-input {
+    order: 0;
+    flex: 1 1 0;
+    min-width: 48px;
+    width: auto;
+    margin-right: 54px;
+    padding: 0 6px;
+    font-size: 20px;
+  }
+  .name-input:focus {
+    margin-right: 0;
+    flex: none;
+  }
+  [data-view='drawing'] .fullscreen-btn { display: none; }
+}

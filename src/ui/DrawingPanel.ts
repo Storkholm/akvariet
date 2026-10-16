@@ -2,6 +2,7 @@ import { Drawing, DRAWING_SIZE } from '../drawing/Drawing';
 import { CRAYONS, RAINBOW, type BrushIndex } from '../drawing/palette';
 import { PATTERNS, patternCoverage, type PatternId } from '../drawing/patterns';
 import { drawStamp, STAMPS, type StampId } from '../drawing/stamps';
+import { MAX_NAME_LENGTH, sanitizeName } from '../creature/name';
 import { clampView, IDENTITY_VIEW, isZoomed, panView, windowToDrawing, zoomAround, type View } from '../drawing/viewTransform';
 import { getTemplate, type Species, type Template } from '../species';
 import { h, svg } from './dom';
@@ -19,7 +20,7 @@ type Page = 'crayons' | 'patterns';
 export class DrawingPanel {
   readonly element: HTMLElement;
   onHome?: () => void;
-  onRelease?: (drawing: Drawing, species: Species) => void;
+  onRelease?: (drawing: Drawing, species: Species, name: string) => void;
   /** A crayon was picked by the child (not the automatic first one when the panel opens). */
   onCrayon?: (index: number) => void;
   /** A number of the "Slip løs" countdown appeared (3, 2, 1). */
@@ -61,6 +62,7 @@ export class DrawingPanel {
   private spaceHeld = false;
   private page: Page = 'crayons';
   private readonly fitButton: HTMLButtonElement;
+  private readonly nameInput: HTMLInputElement;
   private readonly tabButtons: Record<Page, HTMLButtonElement>;
   private readonly crayonsEl: HTMLElement;
   private readonly patternsEl: HTMLElement;
@@ -82,6 +84,23 @@ export class DrawingPanel {
     const tabs = h('div', { class: 'tabs', role: 'group', 'aria-label': 'Bakkens sider' }, [tabCrayons, tabPatterns]);
     tabCrayons.addEventListener('click', () => this.setPage('crayons'));
     tabPatterns.addEventListener('click', () => this.setPage('patterns'));
+
+    // CONTEXT: Navn – a small "Aa" field at the top: tap, type (at most 12 characters), done. Optional.
+    this.nameInput = h('input', { class: 'name-input', type: 'text', placeholder: 'Aa', 'aria-label': 'Navn', autocomplete: 'off', autocapitalize: 'words', spellcheck: false, enterkeyhint: 'done', maxlength: String(MAX_NAME_LENGTH * 2) });
+    this.nameInput.addEventListener('input', () => {
+      const clean = sanitizeName(this.nameInput.value);
+      // (A space at the end is allowed while typing: the next letter must be able to follow it.)
+      const trailing = /[ ]$/.test(this.nameInput.value) && clean.length < MAX_NAME_LENGTH && clean !== '' ? ' ' : '';
+      if (this.nameInput.value !== clean + trailing) this.nameInput.value = clean + trailing;
+    });
+    this.nameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === 'Escape') {
+        e.preventDefault();
+        this.nameInput.blur();
+      }
+    });
+    this.nameInput.addEventListener('focus', () => this.setTyping(true));
+    this.nameInput.addEventListener('blur', () => this.setTyping(false));
 
     this.overlay = h('canvas', { class: 'template-overlay' });
     this.canvasWrap = h('div', { class: 'canvas-wrap' }, [this.overlay, this.fitButton]);
@@ -160,7 +179,7 @@ export class DrawingPanel {
 
     this.element = h('div', { class: 'panel', hidden: true }, [
       this.stage,
-      h('div', { class: 'top-buttons' }, [homeButton, tabs, h('div', { class: 'top-right-buttons' }, [this.undoButton])]),
+      h('div', { class: 'top-buttons' }, [homeButton, tabs, this.nameInput, h('div', { class: 'top-right-buttons' }, [this.undoButton])]),
       bottom,
       this.countdownEl,
       this.confirm,
@@ -203,6 +222,37 @@ export class DrawingPanel {
     this.resizeObserver.observe(this.stage);
   }
 
+  /** The name typed so far (cleaned up; empty when there is none). */
+  get name(): string {
+    return sanitizeName(this.nameInput.value);
+  }
+
+  /**
+   * While the name is typed the tray steps aside and the panel follows the part of the screen the keyboard leaves free
+   * (`visualViewport`), so the animal is never hidden behind the keyboard (DESIGN 8.6).
+   */
+  private setTyping(on: boolean): void {
+    this.element.classList.toggle('typing', on);
+    const vv = window.visualViewport;
+    if (this.typingFit) vv?.removeEventListener('resize', this.typingFit);
+    this.typingFit = null;
+    if (on && vv) {
+      const fit = (): void => {
+        this.element.style.height = `${Math.round(vv.height)}px`;
+        this.element.style.transform = vv.offsetTop > 0 ? `translateY(${Math.round(vv.offsetTop)}px)` : '';
+      };
+      this.typingFit = fit;
+      vv.addEventListener('resize', fit);
+      fit();
+    } else {
+      this.element.style.height = '';
+      this.element.style.transform = '';
+      window.setTimeout(() => this.layout(), 0);
+    }
+  }
+
+  private typingFit: (() => void) | null = null;
+
   get currentDrawing(): Drawing | null {
     return this.drawing;
   }
@@ -236,6 +286,7 @@ export class DrawingPanel {
     this.activePointer = null;
     this.confirm.hidden = true;
     this.crayonIndex = 0;
+    this.nameInput.value = '';
     this.cancelHold();
     this.setTool('crayon');
     this.selectCrayon(0, false);
@@ -278,7 +329,8 @@ export class DrawingPanel {
   }
 
   private release(): void {
-    if (this.drawing && this.species) this.onRelease?.(this.drawing, this.species);
+    this.nameInput.blur();
+    if (this.drawing && this.species) this.onRelease?.(this.drawing, this.species, sanitizeName(this.nameInput.value));
   }
 
   private selectCrayon(i: number, sound = true): void {
@@ -547,6 +599,11 @@ export class DrawingPanel {
 
   private readonly onPointerDown = (e: PointerEvent): void => {
     if (!this.drawing || this.element.classList.contains('releasing')) return;
+    // A tap on the picture while the name is typed only closes the keyboard (it must not also draw).
+    if (document.activeElement === this.nameInput) {
+      this.nameInput.blur();
+      return;
+    }
     if ((e.target as HTMLElement | null)?.closest('.fit-btn')) return; // (the "whole animal" button floats over the drawing)
     const [lx, ly] = this.local(e);
     if (e.pointerType === 'mouse') {

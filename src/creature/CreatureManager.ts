@@ -71,9 +71,10 @@ export class CreatureManager {
     species: Species,
     rect: ViewRect,
     viewport: { width: number; height: number },
+    name?: string,
   ): Creature {
     const template = getTemplate(species);
-    const creature = new Creature(template, this.body(species), drawing, undefined, this.maxAnisotropy);
+    const creature = new Creature(template, this.body(species), drawing, undefined, this.maxAnisotropy, { name });
     creature.transition = new Transition(template, this.camera, viewport, rect, this.bounds, createRng((Math.random() * 2 ** 32) >>> 0), !!template.swim.crawl);
     creature.transition.update(0, creature.group); // pose it before the first rendered frame
     this.add(creature);
@@ -81,7 +82,7 @@ export class CreatureManager {
   }
 
   /** Puts an already swimming creature into the water (used for saved creatures in M4 and by tests). */
-  spawn(drawing: HTMLCanvasElement, species: Species, pos?: [number, number, number], yaw?: number, meta?: { id?: string; createdAt?: number; fullLoader?: () => Promise<HTMLCanvasElement | null> }): Creature {
+  spawn(drawing: HTMLCanvasElement, species: Species, pos?: [number, number, number], yaw?: number, meta?: { id?: string; createdAt?: number; name?: string; fullLoader?: () => Promise<HTMLCanvasElement | null> }): Creature {
     const template = getTemplate(species);
     const creature = new Creature(template, this.body(species), drawing, undefined, this.maxAnisotropy, meta);
     const r = creature.rng;

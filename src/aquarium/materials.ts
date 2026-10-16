@@ -12,6 +12,8 @@ export interface CreatureShader {
   halfSpan: number;
   wingAmp: number;
   tailAmp: number;
+  /** The name on the belly (alpha channel, mirrored: see `createNameTexture`); the belly is darkened where the letters are. */
+  nameMap?: THREE.Texture;
   /** Per-creature: wave phase in radians, how far the body has "unfolded" (0 flat … 1 swimming) and how hard it turns (−1…1). */
   uniforms: { uPhase: { value: number }; uFlap: { value: number }; uTurn: { value: number } };
 }
@@ -40,7 +42,7 @@ export interface WaterPatch {
 export function patchWater<T extends THREE.MeshLambertMaterial>(mat: T, patch: WaterPatch = {}): T {
   const cr = patch.creature;
   const key = `water-${patch.sway ? 's' : ''}${patch.caustics ?? 0}${patch.fish ? 'f' : ''}${
-    cr ? `c${cr.style}${cr.size}-${cr.halfSpan.toFixed(3)}-${cr.wingAmp}-${cr.tailAmp}` : ''
+    cr ? `c${cr.style}${cr.size}-${cr.halfSpan.toFixed(3)}-${cr.wingAmp}-${cr.tailAmp}${cr.nameMap ? 'n' : ''}` : ''
   }${patch.cap ? `cap${patch.cap.map((v) => v.toFixed(2)).join('-')}` : ''}`;
   mat.customProgramCacheKey = () => key;
   mat.onBeforeCompile = (shader) => {
@@ -49,6 +51,7 @@ export function patchWater<T extends THREE.MeshLambertMaterial>(mat: T, patch: W
       shader.uniforms.uPhase = cr.uniforms.uPhase;
       shader.uniforms.uFlap = cr.uniforms.uFlap;
       shader.uniforms.uTurn = cr.uniforms.uTurn;
+      if (cr.nameMap) shader.uniforms.uNameMap = { value: cr.nameMap };
     }
 
     const vertexDecl = [
@@ -100,6 +103,7 @@ export function patchWater<T extends THREE.MeshLambertMaterial>(mat: T, patch: W
         uniform float uTime;
         varying vec3 vWorld;
         ${cr ? 'varying float vSide;' : ''}
+        ${cr?.nameMap ? 'uniform sampler2D uNameMap;' : ''}
         float caustic(vec2 p, float t) {
           float a = sin(p.x * 1.1 + t * 0.9 + sin(p.y * 0.8 - t * 0.6) * 1.5);
           float b = sin(p.y * 1.3 - t * 0.7 + sin(p.x * 0.9 + t * 0.5) * 1.5);
@@ -116,7 +120,13 @@ export function patchWater<T extends THREE.MeshLambertMaterial>(mat: T, patch: W
             ? // Belly = the drawing, paler and less saturated: ~65% towards a light cream (CONTEXT: Bug).
               // The belly faces away from the sun, so it also gets light bounced up from the pale sand.
               `diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.96, 0.92, 0.80), 0.65 * vSide);
-        totalEmissiveRadiance += vSide * diffuseColor.rgb * 0.5;`
+        totalEmissiveRadiance += vSide * diffuseColor.rgb * 0.5;${
+          cr.nameMap
+            ? `
+        // The name, written on the belly in a darker tone of the belly's own colour.
+        if (vSide > 0.5) diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.34, texture2D(uNameMap, vMapUv).a);`
+            : ''
+        }`
             : ''
         }
         ${

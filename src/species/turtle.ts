@@ -36,6 +36,7 @@ export const turtleTemplate: Template = {
   species: 'turtle',
   baseColor: '#f1f4f6',
   center: [0.5, 0.5],
+  nameSpot: { x: 0.5, y: 0.57, width: 0.34 },
   size: 4.2,
   // Calm, heavy and slow: long synchronous strokes of the front flippers, the back flippers steer.
   swim: { style: 'turtle', cruiseSpeed: [0.7, 1.2], turnRate: 0.45, flapHz: 0.32, wingAmp: 0.55, tailAmp: 0.3 },
