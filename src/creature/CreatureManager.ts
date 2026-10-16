@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildBody } from '../body/buildBody';
+import { buildBody, templateToLocal } from '../body/buildBody';
 import { getTemplate, type Species } from '../species';
 import { createRng } from '../util/random';
 import { Creature } from './Creature';
@@ -190,10 +190,10 @@ export class CreatureManager {
       const reach = c.template.size * 0.75 * pxPerUnit;
       if (distanceToSegment([cx, cy], a, b) > reach) continue;
       c.group.updateMatrixWorld(true);
-      const { size, center } = c.template;
       const hit = c.template.parts.some((part) => {
         const poly: P2[] = part.outline.map(([u, w]) => {
-          const p = v.set((u - center[0]) * size, 0, (w - center[1]) * size).applyMatrix4(c.mesh.matrixWorld).project(this.camera);
+          const [lx, ly, lz] = templateToLocal(c.template, u, w);
+          const p = v.set(lx, ly, lz).applyMatrix4(c.mesh.matrixWorld).project(this.camera);
           return [(p.x * 0.5 + 0.5) * viewport.width, (-p.y * 0.5 + 0.5) * viewport.height] as P2;
         });
         return segmentHitsPolygon(a, b, poly);

@@ -40,6 +40,7 @@ export class Transition {
   readonly start = new THREE.Vector3();
   readonly flightTarget = new THREE.Vector3();
 
+  private readonly sideView: boolean;
   private readonly p0 = new THREE.Vector3();
   private readonly p1 = new THREE.Vector3();
   private readonly p2 = new THREE.Vector3();
@@ -81,7 +82,10 @@ export class Transition {
 
     const camQuat = camera.getWorldQuaternion(new THREE.Quaternion());
     // Local axes → camera axes: x → right, y (back) → towards the viewer, z (tail) → down the screen.
-    this.startQuat.copy(camQuat).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2));
+    // Top view: local x → right, y (the back) → towards the viewer, z (tail) → down the screen.
+    // Side view (fish, ADR 0005): the drawing stands upright: z (tail) → right… the head (−z) is on the left of the picture, y → up the screen, and the left flank (−x) faces the viewer.
+    this.sideView = template.view === 'side';
+    this.startQuat.copy(camQuat).multiply(new THREE.Quaternion().setFromAxisAngle(this.sideView ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0), Math.PI / 2));
     this.camBack.set(0, 0, 1).applyQuaternion(camQuat);
     this.camUp.set(0, 1, 0).applyQuaternion(camQuat);
     const camFwd = this.camBack.clone().negate();
@@ -103,8 +107,9 @@ export class Transition {
       this.p2.y = terrainHeight(this.p2.x, this.p2.z) + 1.4;
     }
     this.flightTarget.copy(this.p2);
-    // The first leg goes "up the screen": that is the way the head points on the flat drawing.
-    this.p1.copy(this.p0).addScaledVector(this.camUp, 0.9);
+    // The first leg goes the way the head points on the flat drawing: "up the screen" (top view).
+    // (A fish's head is on the left of its drawing: it starts out to the left.)
+    this.p1.copy(this.p0).addScaledVector(this.sideView ? camRight.clone().negate() : this.camUp, 0.9);
     this.prev.copy(this.p0);
   }
 
@@ -147,7 +152,8 @@ export class Transition {
     } else {
       // Heading follows the path; "up" turns from "towards the viewer" (back visible) to world up.
       const blend = smooth(clamp01((u - 0.05) / 0.8));
-      this.tmp.u.copy(this.camBack).lerp(new THREE.Vector3(0, 1, 0), blend).normalize();
+      // "Up" (the way the back points) turns from where it is on the flat drawing – towards the viewer, or up the screen for a fish – to world up.
+      this.tmp.u.copy(this.sideView ? this.camUp : this.camBack).lerp(new THREE.Vector3(0, 1, 0), blend).normalize();
       z.copy(f).negate();
       y.copy(this.tmp.u).addScaledVector(z, -this.tmp.u.dot(z)).normalize();
       x.crossVectors(y, z);

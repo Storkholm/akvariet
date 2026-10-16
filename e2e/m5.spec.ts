@@ -25,7 +25,7 @@ for (const [name, size] of SIZES) {
     await page.goto('/?still');
     await adv(page, 2.5);
     const areas = await page.evaluate(() => (window as unknown as W).aquarium.pickerBubbles.hitAreas());
-    expect(areas.map((a) => a.species).sort()).toEqual(['ray', 'seaCucumber', 'seaUrchin', 'starfish', 'turtle']);
+    expect(areas.map((a) => a.species).sort()).toEqual(['clownfish', 'pufferfish', 'ray', 'seaCucumber', 'seaUrchin', 'shark', 'starfish', 'turtle']);
 
     // DESIGN 8.3: ~3 bubbles fit on a tablet (so both are whole); on an upright phone it is 1½, so the second one peeks in.
     const upright = size.height > size.width * 1.05;

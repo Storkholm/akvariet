@@ -5,7 +5,7 @@ export const timeUniform = { value: 0 };
 
 /** Swim motion of a creature (DESIGN 3.4); numbers are baked into the shader source. */
 export interface CreatureShader {
-  style: 'ray' | 'turtle' | 'starfish' | 'urchin' | 'cucumber';
+  style: 'ray' | 'turtle' | 'starfish' | 'urchin' | 'cucumber' | 'fish';
   /** World units per template unit. */
   size: number;
   /** World half span of the wings (distance from the centre line to the wing tip). */
@@ -14,8 +14,10 @@ export interface CreatureShader {
   tailAmp: number;
   /** The name on the belly (alpha channel, mirrored: see `createNameTexture`); the belly is darkened where the letters are. */
   nameMap?: THREE.Texture;
+  /** Pufferfish: the body can be puffed up (`uniforms.uInflate`, 0…1). */
+  inflate?: boolean;
   /** Per-creature: wave phase in radians, how far the body has "unfolded" (0 flat … 1 swimming) and how hard it turns (−1…1). */
-  uniforms: { uPhase: { value: number }; uFlap: { value: number }; uTurn: { value: number } };
+  uniforms: { uPhase: { value: number }; uFlap: { value: number }; uTurn: { value: number }; uInflate?: { value: number } };
 }
 
 export interface WaterPatch {
@@ -42,7 +44,7 @@ export interface WaterPatch {
 export function patchWater<T extends THREE.MeshLambertMaterial>(mat: T, patch: WaterPatch = {}): T {
   const cr = patch.creature;
   const key = `water-${patch.sway ? 's' : ''}${patch.caustics ?? 0}${patch.fish ? 'f' : ''}${
-    cr ? `c${cr.style}${cr.size}-${cr.halfSpan.toFixed(3)}-${cr.wingAmp}-${cr.tailAmp}${cr.nameMap ? 'n' : ''}` : ''
+    cr ? `c${cr.style}${cr.size}-${cr.halfSpan.toFixed(3)}-${cr.wingAmp}-${cr.tailAmp}${cr.nameMap ? 'n' : ''}${cr.inflate ? 'i' : ''}` : ''
   }${patch.cap ? `cap${patch.cap.map((v) => v.toFixed(2)).join('-')}` : ''}`;
   mat.customProgramCacheKey = () => key;
   mat.onBeforeCompile = (shader) => {
@@ -52,6 +54,7 @@ export function patchWater<T extends THREE.MeshLambertMaterial>(mat: T, patch: W
       shader.uniforms.uFlap = cr.uniforms.uFlap;
       shader.uniforms.uTurn = cr.uniforms.uTurn;
       if (cr.nameMap) shader.uniforms.uNameMap = { value: cr.nameMap };
+      if (cr.inflate && cr.uniforms.uInflate) shader.uniforms.uInflate = cr.uniforms.uInflate;
     }
 
     const vertexDecl = [
@@ -60,7 +63,7 @@ export function patchWater<T extends THREE.MeshLambertMaterial>(mat: T, patch: W
       patch.sway ? 'attribute float sway;' : '',
       patch.fish ? 'attribute float tail; attribute float aPhase;' : '',
       cr
-        ? 'attribute float side; attribute float flex; attribute float part; attribute float lift; attribute vec3 pivot; uniform float uPhase; uniform float uFlap; uniform float uTurn; varying float vSide;'
+        ? 'attribute float side; attribute float flex; attribute float part; attribute float lift; attribute vec3 pivot; uniform float uPhase; uniform float uFlap; uniform float uTurn; varying float vSide;' + (cr.inflate ? ' uniform float uInflate;' : '')
         : '',
     ].join('\n');
 
@@ -192,6 +195,26 @@ function creatureMotion(cr: CreatureShader): string {
           transformed = pv + d;
           // The whole body rides gently up and down with the strokes.
           transformed.y += uFlap * 0.012 * ${f(cr.size)} * sin(p + 0.8);
+        }`;
+  }
+  if (cr.style === 'fish') {
+    // Side view (ADR 0005): the body wags like a swimming fish – a wave from the head to the tail, small at the head and big at the
+    // tail – and little fins (parts with a pivot) paddle sideways. A pufferfish can be puffed up: rounder, much thicker, a little bigger.
+    const half = cr.halfSpan;
+    return `
+        {
+          float zn = transformed.z / ${f(half)};
+          float k = clamp((zn + 0.2) / 1.2, 0.0, 1.0);
+          float amp = ${f(cr.wingAmp * cr.size)} + ${f(cr.tailAmp * cr.size)} * k * k;
+          transformed.x += uFlap * amp * sin(uPhase - zn * 2.6);
+          transformed.x += uFlap * flex * ${f(0.06 * cr.size)} * sin(uPhase * 1.4 + 1.0);
+          ${
+            cr.inflate
+              ? `float puff = smoothstep(0.0, 1.0, uInflate);
+          transformed.x *= 1.0 + 1.4 * puff;
+          transformed.yz *= 1.0 + 0.5 * puff;`
+              : ''
+          }
         }`;
   }
   if (cr.style === 'starfish') {

@@ -57,7 +57,7 @@ export class Creature {
   private readonly fullLoader: (() => Promise<HTMLCanvasElement | null>) | null;
   private wantsFull = false;
   private readonly material: THREE.MeshLambertMaterial;
-  private readonly uniforms: { uPhase: { value: number }; uFlap: { value: number }; uTurn: { value: number } };
+  private readonly uniforms: { uPhase: { value: number }; uFlap: { value: number }; uTurn: { value: number }; uInflate: { value: number } };
   private phase: number;
 
   constructor(
@@ -79,7 +79,7 @@ export class Creature {
     // From M9 the full drawing is stored (ADR 0009), and then it can be fetched when a creature is followed.
     if (this.fullSource) globalThis.setTimeout(() => (this.fullSource = this.fullTexture ? this.fullSource : null), 60_000);
     this.texture = createCreatureTexture(this.drawing, template, maxAnisotropy);
-    this.uniforms = { uPhase: { value: 0 }, uFlap: { value: 0 }, uTurn: { value: 0 } };
+    this.uniforms = { uPhase: { value: 0 }, uFlap: { value: 0 }, uTurn: { value: 0 }, uInflate: { value: 0 } };
     this.nameTexture = this.name ? createNameTexture(this.name, template) : null;
     this.material = createCreatureShader(template, this.texture, this.uniforms, undefined, this.nameTexture);
     this.mesh = new THREE.Mesh(geometry, this.material);
@@ -88,6 +88,11 @@ export class Creature {
     if (template.species === 'seaUrchin') {
       this.spikes = new UrchinSpikes(geometry, this.drawing, template.size, () => rng.next());
       this.mesh.add(this.spikes.mesh);
+    } else if (template.swim.inflates) {
+      // The pufferfish's small spikes: hidden until it puffs up.
+      this.spikes = new UrchinSpikes(geometry, this.drawing, template.size, () => rng.next(), { count: 90, gap: 0.075, length: 0.07, sides: true });
+      this.mesh.add(this.spikes.mesh);
+      this.spikes.setPuff(0);
     }
     this.glass = template.swim.glass ? new GlassClimb(rng) : null;
     this.phase = rng.range(0, Math.PI * 2);
@@ -180,7 +185,7 @@ export class Creature {
   /** A tap: hop or somersault. Ignored while it is being released, saying goodbye, or already reacting. */
   react(kind?: ReactionKind): boolean {
     if (this.leaving || this.transition || this.reaction) return false;
-    this.reaction = new Reaction(kind ?? pickKind(this.rng.next()));
+    this.reaction = new Reaction(kind ?? (this.template.swim.inflates ? 'puff' : pickKind(this.rng.next())));
     return true;
   }
 
@@ -231,7 +236,7 @@ export class Creature {
     const { flapHz } = this.template.swim;
     this.phase += dt * Math.PI * 2 * flapHz * (0.75 + 0.25 * speed);
     this.uniforms.uPhase.value = this.phase;
-    this.spikes?.update(timeUniform.value, this.uniforms.uFlap.value);
+    if (this.template.species === 'seaUrchin') this.spikes?.update(timeUniform.value, this.uniforms.uFlap.value);
   }
 
   /** The hop/somersault rides on top of whatever the swimmer does: a lift along world up and a flip about the wing axis. */
@@ -241,9 +246,15 @@ export class Creature {
     const pose = r.step(dt);
     this.group.position.y += pose.lift;
     this.mesh.rotation.x = pose.pitch;
+    if (this.template.swim.inflates) {
+      this.uniforms.uInflate.value = pose.inflate;
+      this.spikes?.setPuff(pose.inflate);
+    }
     if (r.done) {
       this.reaction = null;
       this.mesh.rotation.x = 0;
+      this.uniforms.uInflate.value = 0;
+      this.spikes?.setPuff(0);
     }
   }
 

@@ -138,7 +138,7 @@ test.describe('M13: hug og stykker', () => {
     await page.screenshot({ path: 'docs/screenshots/M13-tablet-2-hug.png' });
     // The creature is deleted from the saved ones; the pieces are not saved.
     await expect.poll(() => storedIds(page)).not.toContain(target);
-    expect((await storedIds(page)).length).toBe(3);
+    expect((await storedIds(page)).length).toBe(4 - cut); // (the cut creatures are gone from the store)
     await adv(page, 0.5);
     await page.screenshot({ path: 'docs/screenshots/M13-tablet-3-stykker.png' });
     // They sink to the sand and lie still.

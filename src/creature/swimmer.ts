@@ -65,7 +65,9 @@ export class Swimmer {
     for (let tries = 0; tries < 8; tries++) {
       const x = this.rng.range(b.min[0] + 2, b.max[0] - 2);
       const z = this.rng.range(b.min[2] + 2, b.max[2] - 2);
-      const y = this.rng.range(this.floorY(x, z, b) + 0.8, b.max[1] - 0.8);
+      // (Reef fish keep to a band above the sand.)
+      const top = this.params.lowBand ? Math.min(b.max[1] - 0.8, this.floorY(x, z, b) + this.params.lowBand) : b.max[1] - 0.8;
+      const y = this.rng.range(this.floorY(x, z, b) + 0.8, Math.max(this.floorY(x, z, b) + 0.9, top));
       this.target = [x, y, z];
       if (Math.hypot(x - this.pos[0], z - this.pos[2]) > 6) break;
     }

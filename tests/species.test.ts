@@ -50,7 +50,7 @@ describe('ray template', () => {
   });
 
   it('every species has a template, and the picker lists them all', () => {
-    const all = ['ray', 'seaCucumber', 'seaUrchin', 'starfish', 'turtle'];
+    const all = ['clownfish', 'pufferfish', 'ray', 'seaCucumber', 'seaUrchin', 'shark', 'starfish', 'turtle'];
     expect(Object.keys(TEMPLATES).sort()).toEqual(all);
     expect([...SPECIES].sort()).toEqual(all);
     expect(getTemplate('turtle').species).toBe('turtle');
