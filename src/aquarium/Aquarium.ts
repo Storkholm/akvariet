@@ -266,12 +266,19 @@ export class Aquarium {
 
   /** A tap on the water: a creature under the finger hops or somersaults in a cloud of bubbles (CONTEXT: Glædeshop). */
   tapAt(ndcX: number, ndcY: number): Creature | null {
-    const c = this.creatures.reactAt(ndcX, ndcY);
-    if (c) {
+    const c = this.creatures.creatureAt(ndcX, ndcY);
+    if (!c) return null;
+    if (c.react()) {
       this.bursts.emit(c.group.position, 28, c.template.size * 0.3);
       this.onReact?.(c);
+      return c;
     }
-    return c;
+    // Still hopping from the last tap: no second hop, but the tap gets its sound all the same (ADR 0012).
+    if (c.reaction) {
+      this.onReact?.(c);
+      return c;
+    }
+    return null;
   }
 
   /** Test hook: simulate `seconds` in fixed steps and render the result once (works while paused). */

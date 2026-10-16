@@ -51,7 +51,7 @@ export class App {
       window.addEventListener(ev, () => {
         this.audio.unlock();
         // The "wee" recordings for a tap on a creature (ADR 0012): fetched once, right after the first tap.
-        void this.audio.loadSamples('wee', import.meta.env.BASE_URL);
+        void this.audio.loadSamples('wee', import.meta.env.BASE_URL, SKIP_TO_LOUD); // (the "wee" must start with the tap, not after a soft lead-in)
       }, { capture: true });
     }
     root.append(ui);

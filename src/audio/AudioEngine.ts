@@ -68,6 +68,7 @@ export class AudioEngine {
   private readonly samples = new Map<string, AudioBuffer[]>();
   private readonly lastSample = new Map<string, number>();
   private readonly sampleEnds = new Map<string, number>();
+  private readonly voices = new Map<string, Array<{ src: AudioBufferSourceNode; gain: GainNode; endsAt: number }>>();
   private readonly onsets = new WeakMap<AudioBuffer, number>();
   private watchdog: number | undefined;
   private blipTimer: number | undefined;
@@ -197,8 +198,12 @@ export class AudioEngine {
     return this.samples.get(name)?.length ?? 0;
   }
 
-  /** Plays a random loaded recording of `name`, never the same one twice in a row. Returns false if there is none. */
-  playSample(name: string, onlyOneAtATime = false): boolean {
+  /**
+   * Plays a random loaded recording of `name`, never the same one twice in a row. Returns false if there is none.
+   * `onlyOneAtATime`: while one is still playing, further calls are silent. Otherwise every call plays; with more than `maxVoices`
+   * playing at once the oldest fades away quickly (a child tapping fast gets a sound for every tap, but not a wall of noise).
+   */
+  playSample(name: string, onlyOneAtATime = false, maxVoices = 3): boolean {
     const list = this.samples.get(name);
     if (!list || list.length === 0 || this.muted || !this.ctx || !this.master) return false;
     const ctx = this.ctx;
@@ -212,10 +217,21 @@ export class AudioEngine {
       const g = ctx.createGain();
       g.gain.value = 0.9;
       src.connect(g).connect(master);
+      const voices = (this.voices.get(name) ?? []).filter((v) => v.endsAt > ctx.currentTime);
+      this.voices.set(name, voices);
+      while (!onlyOneAtATime && voices.length >= maxVoices) {
+        const old = voices.shift();
+        if (!old) break;
+        old.gain.gain.cancelScheduledValues(ctx.currentTime);
+        old.gain.gain.setValueAtTime(old.gain.gain.value, ctx.currentTime);
+        old.gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.08);
+        try { old.src.stop(ctx.currentTime + 0.1); } catch { /* already stopped */ }
+      }
       // Recordings begin with a moment of silence: skip it, so the shout lands with the cut.
       const onset = this.onsets.get(src.buffer) ?? 0;
       src.start(0, onset);
       this.sampleEnds.set(name, ctx.currentTime + src.buffer.duration - onset);
+      voices.push({ src, gain: g, endsAt: ctx.currentTime + src.buffer.duration - onset });
       this.played.push(`sample:${name}-${pick + 1}`);
       if (this.played.length > 200) this.played.shift();
     });
@@ -229,8 +245,8 @@ export class AudioEngine {
 
   /** A creature hops for joy (CONTEXT: Glædeshop). */
   react(): void {
-    // A recorded "wee" if there is one (ADR 0012); a second tap while one is still playing is silent. Otherwise bubbles made in code.
-    if (this.playSample('wee', true)) return;
+    // A recorded "wee" if there is one (ADR 0012): every tap plays one (up to three at once). Otherwise bubbles made in code.
+    if (this.playSample('wee')) return;
     this.play('bubbles', (c, out, t) => bubbles(c, out, t, this.rng));
   }
 
