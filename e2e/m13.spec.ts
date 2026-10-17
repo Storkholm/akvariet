@@ -144,9 +144,9 @@ test.describe('M13: hug og stykker', () => {
     // They sink to the sand and lie still.
     await adv(page, 25);
     const states = await page.evaluate(() => (window as unknown as W).aquarium.fragments.list.map((f) => f.state));
-    expect(states).toEqual(['resting', 'resting']);
+    expect(states).toEqual(Array(2 * cut).fill('resting'));
     await reloadAndRestore(page);
-    expect((await sceneInfo(page)).total).toBe(3); // after a reload: the three others, no pieces
+    expect((await sceneInfo(page)).total).toBe(4 - cut); // after a reload: the others, no pieces
     expect(errors).toEqual([]);
     await ctx.close();
   });
