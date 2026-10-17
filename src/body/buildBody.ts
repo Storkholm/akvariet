@@ -18,8 +18,18 @@ export interface BodyStats {
  * pivot in local coordinates) and `flex` (0 for rigid parts; for parts with a pivot, how far from the pivot towards
  * the part's tip, 0..1 – drives tail swing and flipper strokes in the vertex shader).
  */
-export function buildBody(template: Template): THREE.BufferGeometry {
+/**
+ * Where template point (u, v) lies in the body's own space, in the middle of the body's thickness. Top view: x = u, z = v, y up
+ * (the drawing lies on the ground plane). Side view (ADR 0005): the drawing stands upright – z = u (head towards −z, the way it swims),
+ * y = −v (up), and the body is thick along x.
+ */
+export function templateToLocal(template: Template, u: number, v: number): [number, number, number] {
   const { size, center } = template;
+  return template.view === 'side' ? [0, -(v - center[1]) * size, (u - center[0]) * size] : [(u - center[0]) * size, 0, (v - center[1]) * size];
+}
+
+export function buildBody(template: Template): THREE.BufferGeometry {
+  const { size } = template;
   const positions: number[] = [];
   const uvs: number[] = [];
   const side: number[] = [];
@@ -45,17 +55,20 @@ export function buildBody(template: Template): THREE.BufferGeometry {
       }
       tipLen = best || 1;
     }
-    const pivotLocal: [number, number, number] = part.pivot ? [(part.pivot[0] - center[0]) * size, 0, (part.pivot[1] - center[1]) * size] : [0, 0, 0];
-    const lift = (part.body.offset ?? 0) * size;
+    const sideView = template.view === 'side';
+    const pivotLocal: [number, number, number] = part.pivot ? templateToLocal(template, part.pivot[0], part.pivot[1]) : [0, 0, 0];
+    const lift = sideView ? 0 : (part.body.offset ?? 0) * size;
 
     for (const belly of [0, 1]) {
       for (let i = 0; i < n; i++) {
         const [u, v] = mesh.points[i];
         const t = mesh.thickness[i];
-        const y = (belly ? -part.body.ventral : part.body.dorsal) * t * size + lift;
-        positions.push((u - center[0]) * size, y, (v - center[1]) * size);
+        // Side view: "back" is the left side of the fish (x < 0), "belly" its right side (x > 0); the same picture sits on both.
+        const thick = (belly ? -part.body.ventral : part.body.dorsal) * t * size;
+        const [lx, ly, lz] = templateToLocal(template, u, v);
+        positions.push(sideView ? -thick : lx, sideView ? ly : thick + lift, lz);
         uvs.push(u, 1 - v);
-        side.push(belly);
+        side.push(sideView ? 0 : belly);
         flex.push(part.pivot ? Math.min(1, Math.max(0, ((u - part.pivot[0]) * tipDir[0] + (v - part.pivot[1]) * tipDir[1]) / tipLen)) : 0);
         lifts.push(lift);
         partIndex.push(partNo);

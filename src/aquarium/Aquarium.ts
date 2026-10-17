@@ -179,6 +179,7 @@ export class Aquarium {
   /** CONTEXT: Følg – the camera follows this creature (double tap), or stops following with null. */
   follow(creature: Creature | null): void {
     if (creature?.glass?.onGlass) return; // it is stuck to the glass in front of the lens: nothing to follow
+    if (creature !== this.followed) this.onFollow?.(creature);
     if (this.followed && this.followed !== creature) this.followed.setFullDetail(false);
     this.followed = creature;
     creature?.setFullDetail(true);
@@ -218,6 +219,20 @@ export class Aquarium {
    * direction. Every creature the swipe crosses is cut in two along that line: it leaves the water and its two pieces take its place.
    * Returns the creatures that were cut.
    */
+  /** The camera starts or stops following a creature (the name sign shows while it does). */
+  onFollow?: (creature: Creature | null) => void;
+
+  /** Called at the end of every frame (the name signs follow their creatures). */
+  onFrame?: (dt: number) => void;
+
+  /** Where a world point is on the screen (CSS px in the picture) and whether it lies in front of the camera. */
+  project(p: THREE.Vector3): { x: number; y: number; visible: boolean } {
+    this.camera.updateMatrixWorld();
+    const v = p.clone().project(this.camera);
+    const { width, height } = this.viewport;
+    return { x: (v.x * 0.5 + 0.5) * width, y: (-v.y * 0.5 + 0.5) * height, visible: v.z < 1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2 };
+  }
+
   /** CONTEXT: Piletaster – the keyboard moves the camera (ADR 0013). The app says when the keys belong to something else. */
   readonly keys: KeyboardControls;
   keyHooks: Pick<KeyboardHost, 'blocked' | 'carouselShown' | 'stepCarousel'> = { blocked: () => false, carouselShown: () => false, stepCarousel: () => undefined };
@@ -266,12 +281,19 @@ export class Aquarium {
 
   /** A tap on the water: a creature under the finger hops or somersaults in a cloud of bubbles (CONTEXT: Glædeshop). */
   tapAt(ndcX: number, ndcY: number): Creature | null {
-    const c = this.creatures.reactAt(ndcX, ndcY);
-    if (c) {
+    const c = this.creatures.creatureAt(ndcX, ndcY);
+    if (!c) return null;
+    if (c.react()) {
       this.bursts.emit(c.group.position, 28, c.template.size * 0.3);
       this.onReact?.(c);
+      return c;
     }
-    return c;
+    // Still hopping from the last tap: no second hop, but the tap gets its sound all the same (ADR 0012).
+    if (c.reaction) {
+      this.onReact?.(c);
+      return c;
+    }
+    return null;
   }
 
   /** Test hook: simulate `seconds` in fixed steps and render the result once (works while paused). */
@@ -310,6 +332,7 @@ export class Aquarium {
     this.camera.updateMatrixWorld();
     this.reef.cull(this.camera);
     for (const s of this.schools) s.cull(this.camera);
+    this.onFrame?.(dt);
   }
 
   /** The highest pixel ratio the game currently renders with (it only ever goes down on slow devices). */

@@ -36,6 +36,7 @@ export class AdultMode {
   private readonly dialog: HTMLElement;
   private readonly help: HTMLElement;
   private readonly thumb: HTMLCanvasElement;
+  private readonly nameLabel: HTMLElement;
   private holdTimer: number | undefined;
   private pending: Creature | null = null;
   private justActivated = false;
@@ -48,10 +49,11 @@ export class AdultMode {
     this.lock = h('button', { class: 'adult-lock', type: 'button', 'aria-label': 'Voksentilstand (hold nede)' }, [ring, svg(ICONS.lock)]);
     this.frame = h('div', { class: 'adult-frame', hidden: true });
     this.thumb = h('canvas', { class: 'adult-thumb', width: 160, height: 160 });
+    this.nameLabel = h('p', { class: 'adult-name', hidden: true });
     const no = h('button', { class: 'confirm-btn no', type: 'button', 'aria-label': 'Nej' }, [svg(ICONS.no)]);
     const yes = h('button', { class: 'confirm-btn yes', type: 'button', 'aria-label': 'Ja' }, [svg(ICONS.yes)]);
     this.dialog = h('div', { class: 'confirm adult-confirm', hidden: true }, [
-      h('div', { class: 'confirm-box', role: 'dialog' }, [this.thumb, h('p', {}, ['Slet dette dyr?']), h('div', { class: 'confirm-actions' }, [no, yes])]),
+      h('div', { class: 'confirm-box', role: 'dialog' }, [this.thumb, this.nameLabel, h('p', {}, ['Slet dette dyr?']), h('div', { class: 'confirm-actions' }, [no, yes])]),
     ]);
     // DESIGN 8.1: grown-up text is allowed here – how to install the game and how to keep a child inside it.
     this.help = h('aside', { class: 'adult-help', hidden: true }, [
@@ -120,6 +122,8 @@ export class AdultMode {
     const creature = this.onPick?.(ndcX, ndcY);
     if (!creature) return;
     this.pending = creature;
+    this.nameLabel.textContent = creature.name ?? '';
+    this.nameLabel.hidden = !creature.name;
     const ctx = this.thumb.getContext('2d');
     if (ctx) {
       ctx.clearRect(0, 0, 160, 160);
