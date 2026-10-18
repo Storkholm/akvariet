@@ -35,6 +35,37 @@ function paintEyes(ctx: CanvasRenderingContext2D, template: Template, size: numb
 }
 
 /**
+ * The name for the belly (CONTEXT: Navn): white text in the alpha channel, in the same picture space as the drawing, so the shader can read it
+ * with the same coordinates. The belly is seen from below – mirrored left to right compared with the back – so the text is drawn mirrored
+ * and reads correctly when the animal swims overhead.
+ */
+export function createNameTexture(name: string, template: Template, size = 512): THREE.CanvasTexture | null {
+  const spot = template.nameSpot;
+  if (!spot || name === '') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = context2d(canvas);
+  const maxWidth = spot.width * size;
+  let px = Math.round(size * 0.075);
+  ctx.font = `800 ${px}px system-ui, "Segoe UI", Roboto, sans-serif`;
+  const w = ctx.measureText(name).width;
+  if (w > maxWidth) {
+    px = Math.max(8, Math.floor((px * maxWidth) / w));
+    ctx.font = `800 ${px}px system-ui, "Segoe UI", Roboto, sans-serif`;
+  }
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  ctx.translate(spot.x * size, spot.y * size);
+  ctx.scale(-1, 1);
+  ctx.fillText(name, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.NoColorSpace;
+  texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+  return texture;
+}
+
+/**
  * Builds the body texture from the (512×512) drawing: the colours are smeared a few pixels outwards
  * past the outline – without that, bilinear filtering at the silhouette would blend in the transparent
  * outside and leave a pale/dark fringe – and the template's eyes are painted on top.

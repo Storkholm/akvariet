@@ -7,6 +7,8 @@ export interface StoredCreature {
   species: Species;
   drawing: Blob;
   createdAt: number;
+  /** CONTEXT: Navn (M10): at most 12 characters; missing when the creature has none. */
+  name?: string;
   /** 2 from M9 (1024×1024 drawing, ADR 0009); missing for creatures saved earlier (512×512). */
   version?: number;
 }

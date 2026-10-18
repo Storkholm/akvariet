@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildBody } from '../body/buildBody';
+import { buildBody, templateToLocal } from '../body/buildBody';
 import { getTemplate, type Species } from '../species';
 import { createRng } from '../util/random';
 import { Creature } from './Creature';
@@ -71,9 +71,10 @@ export class CreatureManager {
     species: Species,
     rect: ViewRect,
     viewport: { width: number; height: number },
+    name?: string,
   ): Creature {
     const template = getTemplate(species);
-    const creature = new Creature(template, this.body(species), drawing, undefined, this.maxAnisotropy);
+    const creature = new Creature(template, this.body(species), drawing, undefined, this.maxAnisotropy, { name });
     creature.transition = new Transition(template, this.camera, viewport, rect, this.bounds, createRng((Math.random() * 2 ** 32) >>> 0), !!template.swim.crawl);
     creature.transition.update(0, creature.group); // pose it before the first rendered frame
     this.add(creature);
@@ -81,7 +82,7 @@ export class CreatureManager {
   }
 
   /** Puts an already swimming creature into the water (used for saved creatures in M4 and by tests). */
-  spawn(drawing: HTMLCanvasElement, species: Species, pos?: [number, number, number], yaw?: number, meta?: { id?: string; createdAt?: number; fullLoader?: () => Promise<HTMLCanvasElement | null> }): Creature {
+  spawn(drawing: HTMLCanvasElement, species: Species, pos?: [number, number, number], yaw?: number, meta?: { id?: string; createdAt?: number; name?: string; fullLoader?: () => Promise<HTMLCanvasElement | null> }): Creature {
     const template = getTemplate(species);
     const creature = new Creature(template, this.body(species), drawing, undefined, this.maxAnisotropy, meta);
     const r = creature.rng;
@@ -189,10 +190,10 @@ export class CreatureManager {
       const reach = c.template.size * 0.75 * pxPerUnit;
       if (distanceToSegment([cx, cy], a, b) > reach) continue;
       c.group.updateMatrixWorld(true);
-      const { size, center } = c.template;
       const hit = c.template.parts.some((part) => {
         const poly: P2[] = part.outline.map(([u, w]) => {
-          const p = v.set((u - center[0]) * size, 0, (w - center[1]) * size).applyMatrix4(c.mesh.matrixWorld).project(this.camera);
+          const [lx, ly, lz] = templateToLocal(c.template, u, w);
+          const p = v.set(lx, ly, lz).applyMatrix4(c.mesh.matrixWorld).project(this.camera);
           return [(p.x * 0.5 + 0.5) * viewport.width, (-p.y * 0.5 + 0.5) * viewport.height] as P2;
         });
         return segmentHitsPolygon(a, b, poly);

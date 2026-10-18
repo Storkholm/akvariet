@@ -1,7 +1,7 @@
 import type { Vec2 } from '../drawing/geometry';
 
 /** CONTEXT: Art. */
-export type Species = 'ray' | 'turtle' | 'starfish' | 'seaUrchin' | 'seaCucumber';
+export type Species = 'ray' | 'turtle' | 'clownfish' | 'pufferfish' | 'shark' | 'starfish' | 'seaUrchin' | 'seaCucumber';
 
 /** How a part is inflated into 3D (ADR 0001): thick in the middle, thin towards the edge. */
 export interface PartBody {
@@ -30,7 +30,7 @@ export interface Part {
 /** Swimming style parameters (the wave itself runs in the vertex shader). */
 export interface SwimParams {
   /** Which wave runs in the vertex shader (see `patchWater`). */
-  style: 'ray' | 'turtle' | 'starfish' | 'urchin' | 'cucumber';
+  style: 'ray' | 'turtle' | 'starfish' | 'urchin' | 'cucumber' | 'fish';
   /** Cruise speed range in world units per second. */
   cruiseSpeed: [number, number];
   /** Max turn rate in radians per second. */
@@ -45,11 +45,17 @@ export interface SwimParams {
   crawl?: boolean;
   /** From time to time the creature crawls up the glass in front of the picture (starfish). */
   glass?: boolean;
+  /** Fish that like to stay near the reef: they pick their targets at most this far above the sand (world units). */
+  lowBand?: number;
+  /** Pufferfish: puffs up into a ball with small spikes when it is tapped (CONTEXT: Glædeshop). */
+  inflates?: boolean;
 }
 
 /** CONTEXT: Skabelon – the species' outline seen from above. */
 export interface Template {
   species: Species;
+  /** Which way the template looks at the animal (ADR 0005): `top` from above (the body is inflated up and down from the drawing's plane), `side` from the left side (inflated to both sides; the same drawing sits on both, mirrored so the head points the right way). Default `top`. */
+  view?: 'top' | 'side';
   parts: Part[];
   /** The only details on the template besides the contour. */
   eyes: Array<{ x: number; y: number; r: number }>;
@@ -60,4 +66,6 @@ export interface Template {
   /** World units per template unit when the creature swims in the aquarium. */
   size: number;
   swim: SwimParams;
+  /** Where the creature's name is written on its belly (template units): the middle of the text and the widest it may be. Only for species whose belly is seen. */
+  nameSpot?: { x: number; y: number; width: number };
 }

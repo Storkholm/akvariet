@@ -6,7 +6,7 @@ type W = { aquarium: { advance(s: number): void }; app: { audio: { played: strin
 const adv = (page: Pg, s: number) => page.evaluate((x) => (window as unknown as W).aquarium.advance(x), s);
 
 test.describe('ADR 0012: "wee" når man trykker på et dyr', () => {
-  test('med optagelserne afspilles en af dem ved et tryk – og en tryk mere, mens den spiller, er lydløs', async ({ browser }) => {
+  test('med optagelserne afspilles en af dem ved hvert tryk – også et tryk mere, mens den første stadig spiller', async ({ browser }) => {
     const { ctx, page, errors } = await newTouchPage(browser, TABLET);
     await page.goto('/?still');
     await page.evaluate(() => (window as unknown as { app: { restored: Promise<void> } }).app.restored);
@@ -27,7 +27,15 @@ test.describe('ADR 0012: "wee" når man trykker på et dyr', () => {
     await adv(page, 0.2);
     await tapOn(ids[1]);
     const second = await page.evaluate(() => (window as unknown as W).app.audio.played.filter((p) => p.startsWith('sample:wee')));
-    expect(second).toHaveLength(1); // the recording is still playing
+    expect(second).toHaveLength(2); // every tap plays, also while the first recording is still going
+    expect(second[1]).not.toBe(second[0]); // (never the same one twice in a row)
+    // Tapping fast: a sound for every tap.
+    for (let i = 0; i < 4; i++) {
+      await adv(page, 0.1); // (the creature is still hopping: no second hop, but a second sound)
+      await tapOn(ids[i % 2]);
+    }
+    const all = await page.evaluate(() => (window as unknown as W).app.audio.played.filter((p) => p.startsWith('sample:wee')));
+    expect(all).toHaveLength(6);
     expect(errors).toEqual([]);
     await ctx.close();
   });

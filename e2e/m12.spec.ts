@@ -42,10 +42,10 @@ async function openStill(browser: import('@playwright/test').Browser, size: { wi
 }
 
 test.describe('M12: bunddyr', () => {
-  test('artskarrusellen har fem arter, og de tre bunddyr kan vælges', async ({ browser }) => {
+  test('artskarrusellen har otte arter, og de tre bunddyr kan vælges', async ({ browser }) => {
     const { ctx, page, errors } = await openStill(browser, TABLET, false);
     const labels = await page.locator('.bubble-hit').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
-    expect(labels).toEqual(['Rokke', 'Skildpadde', 'Søstjerne', 'Søpindsvin', 'Søpølse']);
+    expect(labels).toEqual(['Rokke', 'Skildpadde', 'Klovnefisk', 'Pufferfisk', 'Haj', 'Søstjerne', 'Søpindsvin', 'Søpølse']);
     expect(errors).toEqual([]);
     await ctx.close();
   });
@@ -121,7 +121,7 @@ test.describe('M12: bunddyr', () => {
   test('et tegnet bunddyr slippes løs og daler blødt ned på sandet', async ({ browser }) => {
     const { ctx, page, errors } = await openStill(browser, TABLET, false);
     // Starfish are the third bubble: bring it into the middle of the row.
-    await page.evaluate(() => (window as unknown as W).aquarium.pickerBubbles.scroll.scrollTo(2));
+    await page.evaluate(() => (window as unknown as W).aquarium.pickerBubbles.scroll.scrollTo(5));
     await adv(page, 1.5);
     await openPanel(page, 'Søstjerne');
     await paintStripes(page);
@@ -145,7 +145,7 @@ test.describe('M12: bunddyr', () => {
     await ctx.close();
   });
 
-  for (const [i, label, file] of [[2, 'Søstjerne', 'soestjerne'], [3, 'Søpindsvin', 'soepindsvin'], [4, 'Søpølse', 'soepoelse']] as const) {
+  for (const [i, label, file] of [[5, 'Søstjerne', 'soestjerne'], [6, 'Søpindsvin', 'soepindsvin'], [7, 'Søpølse', 'soepoelse']] as const) {
     test(`skabelonen til ${label} kan tegnes på`, async ({ browser }) => {
       const { ctx, page, errors } = await openStill(browser, TABLET, false);
       await page.evaluate((n) => (window as unknown as W).aquarium.pickerBubbles.scroll.scrollTo(n), i);

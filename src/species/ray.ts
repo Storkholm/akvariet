@@ -39,6 +39,7 @@ export const rayTemplate: Template = {
   species: 'ray',
   baseColor: '#f1f4f6',
   center: [0.5, 0.34],
+  nameSpot: { x: 0.5, y: 0.34, width: 0.38 },
   size: 4.2,
   swim: { style: 'ray', cruiseSpeed: [1.0, 1.7], turnRate: 0.55, flapHz: 0.6, wingAmp: 0.2, tailAmp: 0.05 },
   eyes: [

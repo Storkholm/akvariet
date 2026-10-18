@@ -14,13 +14,14 @@ function geometry(): THREE.BufferGeometry {
 }
 
 /** Picks `count` roots spread over the upper side of the body: vertices that face up, at least `minGap` apart. */
-export function spikeRoots(body: THREE.BufferGeometry, count: number, minGap: number, random: () => number): Array<{ pos: THREE.Vector3; normal: THREE.Vector3; uv: [number, number] }> {
+export function spikeRoots(body: THREE.BufferGeometry, count: number, minGap: number, random: () => number, sides = false): Array<{ pos: THREE.Vector3; normal: THREE.Vector3; uv: [number, number] }> {
   const pos = body.getAttribute('position');
   const nor = body.getAttribute('normal');
   const uv = body.getAttribute('uv');
   const side = body.getAttribute('side');
   const ids: number[] = [];
-  for (let i = 0; i < pos.count; i++) if (side.getX(i) < 0.5 && nor.getY(i) > 0.15) ids.push(i);
+  // Sea urchin: the upper side of the body. Pufferfish (`sides`): both flanks.
+  for (let i = 0; i < pos.count; i++) if (sides ? Math.abs(nor.getX(i)) > 0.35 : side.getX(i) < 0.5 && nor.getY(i) > 0.15) ids.push(i);
   // Deterministic shuffle by the creature's own random numbers.
   for (let i = ids.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
@@ -51,9 +52,9 @@ export class UrchinSpikes {
   private readonly s = new THREE.Vector3();
   private readonly dir = new THREE.Vector3();
 
-  constructor(body: THREE.BufferGeometry, drawing: HTMLCanvasElement, bodySize: number, random: () => number) {
-    this.length = bodySize * 0.3;
-    this.roots = spikeRoots(body, SPIKE_COUNT, bodySize * 0.075, random);
+  constructor(body: THREE.BufferGeometry, drawing: HTMLCanvasElement, bodySize: number, random: () => number, opts: { count?: number; gap?: number; length?: number; sides?: boolean } = {}) {
+    this.length = bodySize * (opts.length ?? 0.3);
+    this.roots = spikeRoots(body, opts.count ?? SPIKE_COUNT, bodySize * (opts.gap ?? 0.075), random, opts.sides ?? false);
     this.phases = this.roots.map(() => random() * Math.PI * 2);
     this.material = new THREE.MeshLambertMaterial({ side: THREE.DoubleSide });
     this.mesh = new THREE.InstancedMesh(geometry(), this.material, this.roots.length);
@@ -79,12 +80,22 @@ export class UrchinSpikes {
     this.update(0);
   }
 
+  /** Pufferfish: the spikes appear and grow with the puffing up, and the whole set swells with the body (`puff` 0…1). */
+  setPuff(puff: number): void {
+    const p = Math.min(1, Math.max(0, puff));
+    this.mesh.visible = p > 0.02;
+    if (!this.mesh.visible) return;
+    const e = p * p * (3 - 2 * p);
+    this.mesh.scale.set(1 + 1.4 * e, 1 + 0.5 * e, 1 + 0.5 * e);
+    this.update(0, 0.6, Math.max(0.05, p));
+  }
+
   get count(): number {
     return this.roots.length;
   }
 
   /** The spikes sway (each with its own phase); `time` in seconds, `amount` 0…1 (0 = still, as on the flat drawing). */
-  update(time: number, amount = 1): void {
+  update(time: number, amount = 1, grow = 1): void {
     this.roots.forEach((r, i) => {
       const ph = this.phases[i];
       this.dir.copy(r.normal);
@@ -92,7 +103,7 @@ export class UrchinSpikes {
       this.e.set(Math.sin(time * 1.3 + ph) * 0.1 * amount, 0, Math.cos(time * 1.1 + ph * 1.7) * 0.1 * amount);
       this.q.setFromUnitVectors(this.up, this.dir);
       this.q.multiply(this.tilt.setFromEuler(this.e));
-      this.s.set(1, this.length * (0.85 + 0.3 * ((i * 37) % 10) / 10), 1);
+      this.s.set(grow, this.length * grow * (0.85 + 0.3 * ((i * 37) % 10) / 10), grow);
       this.m.compose(r.pos, this.q, this.s);
       this.mesh.setMatrixAt(i, this.m);
     });

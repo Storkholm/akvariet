@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Creature } from '../creature/Creature';
+import { templateToLocal } from '../body/buildBody';
 import { polygonBounds } from '../drawing/geometry';
 import { TEMPLATES, type Species } from '../species';
 import { carouselGeometry, CarouselScroll } from '../ui/carouselScroll';
@@ -19,7 +20,8 @@ interface Item {
   /** Scale (in bubble units) that makes the whole animal fit inside the bubble. */
   fit: number;
   /** Where the animal's visual centre is, relative to its template centre (local x, z, world units). */
-  centreOffset: [number, number];
+  /** Where the visual centre of the animal lies from the body's own origin, in its own space (so the bubble can centre it). */
+  centreOffset: [number, number, number];
   state: State;
   t: number;
   phase: number;
@@ -112,11 +114,15 @@ export class PickerBubbles {
     const root = new THREE.Group();
     const sway = new THREE.Group();
     const holder = new THREE.Group();
-    holder.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2); // back towards the viewer, head up
+    // Top view: back towards the viewer, head up. Side view (fish): the left side towards the viewer, head to the left.
+    if (template.view === 'side') holder.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+    else holder.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
     // Centre the animal's visual centre in the bubble and find how far its outline reaches from there.
     const b = polygonBounds(template.parts.flatMap((p) => p.outline));
     const vc: [number, number] = [(b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2];
-    const centreOffset: [number, number] = [(vc[0] - template.center[0]) * template.size, (vc[1] - template.center[1]) * template.size];
+    const here = templateToLocal(template, vc[0], vc[1]);
+    const origin = templateToLocal(template, template.center[0], template.center[1]);
+    const centreOffset: [number, number, number] = [here[0] - origin[0], here[1] - origin[1], here[2] - origin[2]];
     let reach = 0;
     for (const [x, y] of template.parts.flatMap((p) => p.outline)) reach = Math.max(reach, Math.hypot((x - vc[0]) * template.size, (y - vc[1]) * template.size));
     animal.setUnfold(1);
@@ -323,7 +329,7 @@ export class PickerBubbles {
       const animalScale = it.fit * rWorld * it.scale * foldScale;
       it.animal.group.scale.setScalar(animalScale);
       // The offset that centres the animal is in its own (unscaled) units, so it scales with it.
-      it.animal.group.position.set(-it.centreOffset[0] * animalScale, 0, -it.centreOffset[1] * animalScale);
+      it.animal.group.position.set(-it.centreOffset[0] * animalScale, -it.centreOffset[1] * animalScale, -it.centreOffset[2] * animalScale);
       // The animal rocks gently, as if floating in the bubble: a tilt that shows its thickness, and a slow roll.
       it.sway.rotation.set(Math.sin(it.phase * 0.7) * 0.28, Math.sin(it.phase * 0.5 + 1) * 0.22, Math.sin(it.phase * 0.6 + 2) * 0.12);
       this.writeShine(it, s);
