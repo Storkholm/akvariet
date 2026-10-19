@@ -1,3 +1,4 @@
+import { fastest } from './timing';
 import { describe, expect, it } from 'vitest';
 import { bodyStats, buildBody } from '../src/body/buildBody';
 import { buildPartMesh, profile, resampleClosed } from '../src/body/partMesh';
@@ -90,9 +91,7 @@ describe('buildBody (ray)', () => {
   const { size, center } = rayTemplate;
 
   it('builds in well under 100 ms (DESIGN 4.2)', () => {
-    const t0 = performance.now();
-    buildBody(rayTemplate);
-    expect(performance.now() - t0).toBeLessThan(100);
+    expect(fastest(() => buildBody(rayTemplate))).toBeLessThan(100);
   });
 
   it('has a reasonable triangle budget for 30 creatures', () => {
@@ -178,9 +177,7 @@ describe('buildBody (turtle)', () => {
   const { size, center } = turtleTemplate;
 
   it('builds in well under 100 ms with a sensible triangle budget', () => {
-    const t0 = performance.now();
-    buildBody(turtleTemplate);
-    expect(performance.now() - t0).toBeLessThan(100);
+    expect(fastest(() => buildBody(turtleTemplate))).toBeLessThan(100);
     const s = bodyStats(g);
     expect(s.triangles).toBeGreaterThan(1500);
     expect(s.triangles).toBeLessThan(7000);

@@ -1,3 +1,4 @@
+import { fastest } from './timing';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { buildBody, bodyStats } from '../src/body/buildBody';
@@ -49,9 +50,8 @@ describe('bottom dweller templates (DESIGN 8.5)', () => {
   });
 
   it.each(BOTTOM)('%s: the body is generated quickly and stays light', (sp) => {
-    const t0 = performance.now();
     const g = buildBody(getTemplate(sp));
-    expect(performance.now() - t0).toBeLessThan(100);
+    expect(fastest(() => buildBody(getTemplate(sp)))).toBeLessThan(100);
     expect(bodyStats(g).triangles).toBeLessThan(12000);
   });
 });

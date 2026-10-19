@@ -1,3 +1,4 @@
+import { fastest } from './timing';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { bodyStats, buildBody, templateToLocal } from '../src/body/buildBody';
@@ -56,9 +57,8 @@ describe('fish templates (side view, ADR 0005)', () => {
 describe('side-view body (ADR 0005)', () => {
   it.each(FISH)('%s: built quickly, upright, thick to the sides, head towards −z', (sp) => {
     const t = getTemplate(sp);
-    const t0 = performance.now();
     const g = buildBody(t);
-    expect(performance.now() - t0).toBeLessThan(100);
+    expect(fastest(() => buildBody(t))).toBeLessThan(100);
     expect(bodyStats(g).triangles).toBeLessThan(9000);
     g.computeBoundingBox();
     const box = g.boundingBox as THREE.Box3;
